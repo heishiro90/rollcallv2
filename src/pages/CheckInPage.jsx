@@ -15,15 +15,23 @@ const ENERGY = [
   { val: 4, emoji: '😊', label: 'Good' },
   { val: 5, emoji: '🔥', label: 'Great' },
 ];
+const POSITIONS = ['Mount', 'Back', 'Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Standing', 'Turtle', 'Leg Entangle'];
+
 const CATEGORIES = [
-  { id: 'submission', label: 'Submissions', techniques: ['Armbar', 'Triangle', 'RNC', 'Kimura', 'Guillotine', 'Darce', 'Omoplata', 'Loop Choke', 'Bow & Arrow', 'Ezekiel', 'Americana', 'Heel Hook', 'Knee Bar', 'Toe Hold', 'Baseball Choke', 'Cross Collar', 'Anaconda', 'North-South', 'Gogoplata', 'Calf Slicer'] },
+  { id: 'takedown', label: 'Takedowns', techniques: ['Single Leg', 'Double Leg', 'Arm Drag', 'Snap Down', 'Body Lock Takedown', 'Ankle Pick', 'Outside Trip', 'Inside Trip', 'Hip Throw', 'Shoulder Throw', 'Foot Sweep', 'Drop Throw', 'Guard Pull'] },
+  { id: 'submission', label: 'Submissions', askPosition: true,
+    techniques: ['Armbar', 'Triangle', 'RNC', 'Kimura', 'Guillotine', 'Darce', 'Omoplata', 'Loop Choke', 'Bow & Arrow', 'Ezekiel', 'Americana', 'Heel Hook', 'Knee Bar', 'Toe Hold', 'Baseball Choke', 'Cross Collar', 'Anaconda', 'North-South Choke', 'Gogoplata', 'Calf Slicer', 'Wrist Lock'] },
   { id: 'sweep', label: 'Sweeps', techniques: ['Scissor Sweep', 'Hip Bump', 'Flower Sweep', 'Berimbolo', 'X-Guard Sweep', 'Butterfly Sweep', 'Pendulum', 'Tripod Sweep', 'Sickle Sweep', 'Elevator Sweep', 'Waiter Sweep'] },
   { id: 'pass', label: 'Guard Passes', techniques: ['Knee Slice', 'Toreando', 'Over-Under', 'Stack Pass', 'Leg Drag', 'Long Step', 'Smash Pass', 'X-Pass', 'Backstep', 'Body Lock Pass'] },
-  { id: 'takedown', label: 'Takedowns', techniques: ['Single Leg', 'Double Leg', 'Arm Drag', 'Snap Down', 'Body Lock', 'Ankle Pick', 'Osoto Gari', 'Seoi Nage', 'Tomoe Nage', 'Uchi Mata', 'Ko Uchi Gari'] },
-  { id: 'escape', label: 'Escapes', techniques: ['Upa (Bridge & Roll)', 'Shrimp', 'Frame & Reguard', 'Granby Roll', 'Trap & Roll', 'Back Escape'] },
+  { id: 'escape', label: 'Escapes', techniques: ['Bridge & Roll', 'Hip Escape', 'Frame & Reguard', 'Granby Roll', 'Trap & Roll', 'Back Escape'] },
 ];
-const BODY_PARTS = ['Neck', 'Shoulder', 'Elbow', 'Wrist/Hand', 'Ribs', 'Lower Back', 'Hip', 'Knee', 'Ankle/Foot', 'Fingers/Toes', 'Head'];
+
+const BODY_PARTS = ['Neck', 'Shoulder', 'Elbow', 'Wrist/Hand', 'Ribs', 'Lower Back', 'Hip', 'Knee', 'Ankle/Foot', 'Fingers/Toes'];
 const INJURY_TYPES = ['Strain', 'Sprain', 'Bruise', 'Pop/Crack', 'Soreness', 'Cut', 'Burn', 'Tweak'];
+const DRILL_CATS = [
+  { id: 'guard', label: '🛡️ Guard' }, { id: 'passing', label: '🚀 Passing' }, { id: 'takedown', label: '🤼 Takedown' },
+  { id: 'submission', label: '🔒 Submission' }, { id: 'escape', label: '🏃 Escape' }, { id: 'sweep', label: '🔄 Sweep' },
+];
 
 function fmt(sec) { const m = Math.floor(sec / 60), s = sec % 60; return `${m}:${String(s).padStart(2, '0')}`; }
 function fmtLong(sec) { const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; }
@@ -47,15 +55,12 @@ export default function CheckInPage() {
   const [energy, setEnergy] = useState(null);
   const [note, setNote] = useState('');
   const [matchedCurr, setMatchedCurr] = useState(null);
-  // Opponent
   const [members, setMembers] = useState([]);
   const [opponent, setOpponent] = useState('');
-  // Injuries
   const [injuries, setInjuries] = useState([]);
   const [injPart, setInjPart] = useState('Knee');
   const [injType, setInjType] = useState('Soreness');
   const [injSev, setInjSev] = useState('minor');
-  // Past session
   const [showPast, setShowPast] = useState(false);
   const [pastDate, setPastDate] = useState('');
   const [pastStart, setPastStart] = useState('18:00');
@@ -63,9 +68,14 @@ export default function CheckInPage() {
   const [pastType, setPastType] = useState('gi');
   const [pastEnergy, setPastEnergy] = useState(3);
   const [pastNote, setPastNote] = useState('');
-  // Recent sessions
   const [recent, setRecent] = useState([]);
   const [showRecent, setShowRecent] = useState(false);
+  // Position picker for submissions
+  const [pendingSub, setPendingSub] = useState(null); // { catId, technique }
+  // Techniques drilled
+  const [techs, setTechs] = useState([]);
+  const [techName, setTechName] = useState('');
+  const [techCat, setTechCat] = useState('guard');
 
   useEffect(() => { if (user && gym) load(); }, [user, gym]);
   useEffect(() => { if (!checkin) return; const i = setInterval(() => setElapsed(Math.floor((Date.now() - new Date(checkin.checked_in_at).getTime()) / 1000)), 1000); return () => clearInterval(i); }, [checkin]);
@@ -80,10 +90,10 @@ export default function CheckInPage() {
       const { data: dr } = await supabase.from('rounds').select('*').eq('checkin_id', c.id).not('ended_at', 'is', null).order('round_number');
       setDoneRounds(dr || []);
       const today = c.checked_in_at.split('T')[0];
-      const { data: curr } = await supabase.from('class_curriculum').select('*, curriculum_techniques(*)').eq('gym_id', gym.id).eq('class_date', today).order('start_time');
+      const { data: curr } = await supabase.from('class_curriculum').select('*, curriculum_techniques(*)').eq('gym_id', gym.id).eq('class_date', today);
       if (curr?.length) setMatchedCurr(curr);
     }
-    const { data: m } = await supabase.from('gym_members').select('user_id, profiles(display_name, avatar_emoji, belt)').eq('gym_id', gym.id);
+    const { data: m } = await supabase.from('gym_members').select('user_id, profiles(display_name, avatar_emoji, avatar_url, belt)').eq('gym_id', gym.id);
     setMembers((m || []).filter(x => x.user_id !== user.id));
     const { data: rec } = await supabase.from('checkins').select('*').eq('user_id', user.id).eq('gym_id', gym.id).not('checked_out_at', 'is', null).order('checked_in_at', { ascending: false }).limit(5);
     setRecent(rec || []);
@@ -93,35 +103,45 @@ export default function CheckInPage() {
   async function doCheckIn() {
     setBusy(true);
     const { data } = await supabase.from('checkins').insert({ user_id: user.id, gym_id: gym.id, session_type: selType }).select().single();
-    if (data) { setCheckin(data); setDoneRounds([]); setRound(null); }
+    if (data) { setCheckin(data); setDoneRounds([]); setRound(null); const today = data.checked_in_at.split('T')[0]; const { data: curr } = await supabase.from('class_curriculum').select('*, curriculum_techniques(*)').eq('gym_id', gym.id).eq('class_date', today); if (curr?.length) setMatchedCurr(curr); }
     setBusy(false);
   }
-
   async function doStartRound() {
     setBusy(true);
     const { data } = await supabase.from('rounds').insert({ checkin_id: checkin.id, user_id: user.id, gym_id: gym.id, round_number: doneRounds.length + 1, opponent_id: opponent || null }).select().single();
     if (data) setRound(data);
-    setOpponent('');
     setBusy(false);
   }
+  function doEndRoundPrompt() { setFrozenRoundTime(roundTime); setEvents([]); setDirection('offensive'); setCustomTech(''); setPendingSub(null); setPhase('round_log'); }
 
-  function doEndRoundPrompt() { setFrozenRoundTime(roundTime); setEvents([]); setDirection('offensive'); setCustomTech(''); setPhase('round_log'); }
-  function tapTechnique(catId, tech) { setEvents(prev => [...prev, { event_type: catId, direction, technique: tech }]); }
-  function addCustom() { if (!customTech.trim()) return; setEvents(prev => [...prev, { event_type: customCat, direction, technique: customTech.trim() }]); setCustomTech(''); }
+  function tapTechnique(cat, tech) {
+    // If it's a submission, ask for position
+    if (cat.askPosition) {
+      setPendingSub({ catId: cat.id, technique: tech });
+      return;
+    }
+    setEvents(prev => [...prev, { event_type: cat.id, direction, technique: tech, position: null }]);
+  }
+  function confirmSubPosition(pos) {
+    if (!pendingSub) return;
+    setEvents(prev => [...prev, { event_type: pendingSub.catId, direction, technique: pendingSub.technique, position: pos }]);
+    setPendingSub(null);
+  }
+  function addCustom() { if (!customTech.trim()) return; setEvents(prev => [...prev, { event_type: customCat, direction, technique: customTech.trim(), position: null }]); setCustomTech(''); }
   function removeEvent(i) { setEvents(prev => prev.filter((_, j) => j !== i)); }
 
   async function doEndRound(skip = false) {
     setBusy(true);
     await supabase.from('rounds').update({ ended_at: new Date().toISOString() }).eq('id', round.id);
     if (!skip && events.length > 0) {
-      await supabase.from('round_events').insert(events.map(e => ({ round_id: round.id, checkin_id: checkin.id, user_id: user.id, gym_id: gym.id, event_type: e.event_type, direction: e.direction, technique: e.technique })));
+      await supabase.from('round_events').insert(events.map(e => ({ round_id: round.id, checkin_id: checkin.id, user_id: user.id, gym_id: gym.id, event_type: e.event_type, direction: e.direction, technique: e.technique, position: e.position })));
     }
     setDoneRounds(prev => [...prev, { ...round, ended_at: new Date().toISOString(), duration_seconds: frozenRoundTime, _events: skip ? [] : events }]);
     setRound(null); setPhase('main'); setBusy(false);
   }
-
-  function doCheckOutPrompt() { setEnergy(null); setNote(''); setInjuries([]); setPhase('debrief'); }
+  function doCheckOutPrompt() { setEnergy(null); setNote(''); setInjuries([]); setTechs([]); setTechName(''); setTechCat('guard'); setPhase('debrief'); }
   function addInjury() { setInjuries(prev => [...prev, { body_part: injPart, injury_type: injType, severity: injSev }]); }
+  function addTech() { if (!techName.trim()) return; setTechs(prev => [...prev, { name: techName.trim(), category: techCat }]); setTechName(''); }
 
   async function doCheckOut(skip = false) {
     setBusy(true);
@@ -130,25 +150,23 @@ export default function CheckInPage() {
     if (!skip && energy) updates.energy_rating = energy;
     if (!skip && note.trim()) updates.note = note.trim();
     await supabase.from('checkins').update(updates).eq('id', checkin.id);
-    if (!skip && injuries.length > 0) {
-      await supabase.from('injuries').insert(injuries.map(inj => ({ user_id: user.id, checkin_id: checkin.id, body_part: inj.body_part, injury_type: inj.injury_type, severity: inj.severity })));
-    }
+    if (!skip && injuries.length > 0) await supabase.from('injuries').insert(injuries.map(inj => ({ user_id: user.id, checkin_id: checkin.id, body_part: inj.body_part, injury_type: inj.injury_type, severity: inj.severity })));
+    if (!skip && techs.length > 0) await supabase.from('techniques').insert(techs.map(t => ({ checkin_id: checkin.id, user_id: user.id, gym_id: gym.id, name: t.name, category: t.category })));
     setCheckin(null); setRound(null); setDoneRounds([]); setMatchedCurr(null); setPhase('main'); setBusy(false); load();
   }
 
   async function addPastSession(e) {
     e.preventDefault(); setBusy(true);
-    const startDt = new Date(`${pastDate}T${pastStart}`);
-    const endDt = new Date(`${pastDate}T${pastEnd}`);
+    const startDt = new Date(`${pastDate}T${pastStart}`), endDt = new Date(`${pastDate}T${pastEnd}`);
     const dur = Math.round((endDt - startDt) / 60000);
     await supabase.from('checkins').insert({ user_id: user.id, gym_id: gym.id, session_type: pastType, checked_in_at: startDt.toISOString(), checked_out_at: endDt.toISOString(), duration_minutes: dur > 0 ? dur : 60, energy_rating: pastEnergy, note: pastNote.trim() || null });
     setShowPast(false); setPastDate(''); setPastNote(''); setBusy(false); load();
   }
+  async function deleteSession(id) { if (!confirm('Delete this session?')) return; await supabase.from('checkins').delete().eq('id', id); load(); }
 
-  async function deleteSession(id) {
-    if (!confirm('Delete this session?')) return;
-    await supabase.from('checkins').delete().eq('id', id);
-    load();
+  function Avatar({ p, size = 20 }) {
+    if (p?.avatar_url) return <img src={p.avatar_url} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover' }} />;
+    return <span style={{ fontSize: size * 0.7 }}>{p?.avatar_emoji || '🥋'}</span>;
   }
 
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>Loading...</div>;
@@ -168,17 +186,35 @@ export default function CheckInPage() {
             <button key={x.d} onClick={() => setDirection(x.d)} style={{ padding: '11px 0', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: direction === x.d ? `${x.c}18` : 'transparent', color: direction === x.d ? x.c : 'var(--text-muted)' }}>{x.l}</button>
           ))}
         </div>
+
+        {/* Position picker modal */}
+        {pendingSub && (
+          <div className="card" style={{ marginBottom: 14, border: '1px solid var(--accent)', padding: 14 }}>
+            <div style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 8 }}>{pendingSub.technique} — from which position?</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {POSITIONS.map(p => (
+                <button key={p} onClick={() => confirmSubPosition(p)} style={{ padding: '7px 14px', fontSize: 12, borderRadius: 16, cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc' }}>{p}</button>
+              ))}
+            </div>
+            <button onClick={() => setPendingSub(null)} style={{ marginTop: 8, background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer' }}>Cancel</button>
+          </div>
+        )}
+
         {events.length > 0 && <div style={{ marginBottom: 14, display: 'flex', flexWrap: 'wrap', gap: 5 }}>{events.map((e, i) => (
-          <span key={i} onClick={() => removeEvent(i)} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer', fontWeight: 500, background: e.direction === 'offensive' ? 'rgba(102,187,106,.12)' : 'rgba(239,83,80,.12)', color: e.direction === 'offensive' ? '#66bb6a' : '#ef5350' }}>{e.direction === 'offensive' ? '✅' : '😤'} {e.technique} ×</span>
+          <span key={i} onClick={() => removeEvent(i)} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer', fontWeight: 500, background: e.direction === 'offensive' ? 'rgba(102,187,106,.12)' : 'rgba(239,83,80,.12)', color: e.direction === 'offensive' ? '#66bb6a' : '#ef5350' }}>
+            {e.direction === 'offensive' ? '✅' : '😤'} {e.technique}{e.position ? ` (${e.position})` : ''} ×
+          </span>
         ))}</div>}
+
         {CATEGORIES.map(cat => (
           <div key={cat.id} style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: CAT_STYLE[cat.id]?.color || 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 5 }}>{cat.label}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>{cat.techniques.map(t => (
-              <button key={t} onClick={() => tapTechnique(cat.id, t)} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 16, cursor: 'pointer', background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: '#bbb' }}>{t}</button>
+              <button key={t} onClick={() => tapTechnique(cat, t)} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 16, cursor: 'pointer', background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: '#bbb' }}>{t}</button>
             ))}</div>
           </div>
         ))}
+
         <div style={{ marginBottom: 18, display: 'flex', gap: 6 }}>
           <select value={customCat} onChange={e => setCustomCat(e.target.value)} style={{ padding: '7px 8px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 11 }}>{CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
           <input className="input" placeholder="Other..." value={customTech} onChange={e => setCustomTech(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }} style={{ flex: 1, padding: '7px 10px', fontSize: 12 }} />
@@ -196,6 +232,7 @@ export default function CheckInPage() {
       <div className="container fade-in" style={{ paddingTop: 32, paddingBottom: 100 }}>
         <h2 style={{ fontFamily: 'var(--font-d)', fontSize: 22, marginBottom: 4 }}>Session done</h2>
         <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 20 }}>{fmtLong(elapsed)} · {doneRounds.length} round{doneRounds.length !== 1 ? 's' : ''}</p>
+
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="label">How did it feel?</div>
           <div style={{ display: 'flex', gap: 6 }}>{ENERGY.map(e => (
@@ -205,19 +242,37 @@ export default function CheckInPage() {
             </button>
           ))}</div>
         </div>
+
+        {/* Techniques drilled */}
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="label">Techniques Drilled During Class</div>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>What the coach taught before rolling</p>
+          <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>{DRILL_CATS.map(c => (
+            <button key={c.id} onClick={() => setTechCat(c.id)} style={{ padding: '5px 10px', fontSize: 11, borderRadius: 8, border: 'none', cursor: 'pointer', background: techCat === c.id ? 'var(--accent)' : 'rgba(255,255,255,.04)', color: techCat === c.id ? '#fff' : 'var(--text-dim)' }}>{c.label}</button>
+          ))}</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input className="input" placeholder="e.g. Scissor sweep from closed guard" value={techName} onChange={e => setTechName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTech(); } }} style={{ flex: 1 }} />
+            <button className="btn btn-secondary btn-small" onClick={addTech}>+</button>
+          </div>
+          {techs.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>{techs.map((t, i) => (
+            <span key={i} onClick={() => setTechs(p => p.filter((_, j) => j !== i))} style={{ padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer', background: 'rgba(155,77,202,.12)', color: '#ce93d8', border: '1px solid rgba(155,77,202,.2)' }}>{DRILL_CATS.find(c => c.id === t.category)?.label?.slice(0, 2)} {t.name} ×</span>
+          ))}</div>}
+        </div>
+
         {/* Injuries */}
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="label">Any injuries?</div>
-          {injuries.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10 }}>{injuries.map((inj, i) => (
-            <span key={i} onClick={() => setInjuries(p => p.filter((_, j) => j !== i))} style={{ padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer', background: inj.severity === 'serious' ? 'rgba(239,83,80,.15)' : inj.severity === 'moderate' ? 'rgba(255,183,77,.15)' : 'rgba(255,255,255,.06)', color: inj.severity === 'serious' ? '#ef5350' : inj.severity === 'moderate' ? '#ffb74d' : '#aaa', border: '1px solid rgba(255,255,255,.08)' }}>🩹 {inj.body_part} — {inj.injury_type} ×</span>
+          {injuries.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>{injuries.map((inj, i) => (
+            <span key={i} onClick={() => setInjuries(p => p.filter((_, j) => j !== i))} style={{ padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer', background: inj.severity === 'serious' ? 'rgba(239,83,80,.15)' : 'rgba(255,255,255,.06)', color: inj.severity === 'serious' ? '#ef5350' : '#aaa' }}>🩹 {inj.body_part} — {inj.injury_type} ×</span>
           ))}</div>}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <select value={injPart} onChange={e => setInjPart(e.target.value)} style={{ padding: '7px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc', fontSize: 12 }}>{BODY_PARTS.map(p => <option key={p} value={p}>{p}</option>)}</select>
-            <select value={injType} onChange={e => setInjType(e.target.value)} style={{ padding: '7px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc', fontSize: 12 }}>{INJURY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select>
+          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+            <select value={injPart} onChange={e => setInjPart(e.target.value)} style={{ padding: '7px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc', fontSize: 12 }}>{BODY_PARTS.map(p => <option key={p}>{p}</option>)}</select>
+            <select value={injType} onChange={e => setInjType(e.target.value)} style={{ padding: '7px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc', fontSize: 12 }}>{INJURY_TYPES.map(t => <option key={t}>{t}</option>)}</select>
             <select value={injSev} onChange={e => setInjSev(e.target.value)} style={{ padding: '7px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc', fontSize: 12 }}><option value="minor">Minor</option><option value="moderate">Moderate</option><option value="serious">Serious</option></select>
-            <button onClick={addInjury} style={{ padding: '7px 14px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+ Add</button>
+            <button onClick={addInjury} style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+ Add</button>
           </div>
         </div>
+
         {matchedCurr?.length > 0 && (
           <div className="card" style={{ marginBottom: 16 }}>
             <div className="label">Today's Class</div>
@@ -230,6 +285,7 @@ export default function CheckInPage() {
             )))}
           </div>
         )}
+
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="label">Note</div>
           <textarea className="input" placeholder="Anything to remember?" value={note} onChange={e => setNote(e.target.value)} rows={2} style={{ resize: 'none' }} />
@@ -247,7 +303,6 @@ export default function CheckInPage() {
         <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
         <h1 style={{ fontFamily: 'var(--font-d)', fontSize: 24, fontWeight: 400, marginTop: 4 }}>{checkin ? "You're on the mat" : `Hey ${profile?.display_name?.split(' ')[0] || 'there'}`}</h1>
       </div>
-
       {checkin ? (
         <div className="fade-in">
           <div className="card" style={{ textAlign: 'center', padding: 24, border: `1px solid ${SESSION_TYPES.find(t => t.id === checkin.session_type)?.color}40`, marginBottom: 16 }}>
@@ -259,18 +314,17 @@ export default function CheckInPage() {
               <span style={{ fontSize: 13, fontWeight: 600, color: '#ccc', textTransform: 'uppercase', letterSpacing: 1 }}>Rounds</span>
               <span style={{ color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-d)' }}>{doneRounds.length + (round ? 1 : 0)}</span>
             </div>
-            {/* Opponent selector */}
             {!round && members.length > 0 && (
               <div style={{ marginBottom: 10 }}>
                 <select value={opponent} onChange={e => setOpponent(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc', fontSize: 12 }}>
-                  <option value="">No opponent (or unknown)</option>
-                  {members.map(m => <option key={m.user_id} value={m.user_id}>{m.profiles?.avatar_emoji} {m.profiles?.display_name} ({m.profiles?.belt})</option>)}
+                  <option value="">Opponent (optional)</option>
+                  {members.map(m => <option key={m.user_id} value={m.user_id}>{m.profiles?.avatar_emoji} {m.profiles?.display_name} — {m.profiles?.belt}</option>)}
                 </select>
               </div>
             )}
             {round ? (
               <>
-                <div className="card round-active" style={{ textAlign: 'center', padding: 20, marginBottom: 12, border: '1px solid #66bb6a', background: 'rgba(102,187,106,.04)' }}>
+                <div className="card" style={{ textAlign: 'center', padding: 20, marginBottom: 12, border: '1px solid #66bb6a', background: 'rgba(102,187,106,.04)' }}>
                   <div style={{ fontSize: 10, color: '#66bb6a', textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700 }}>Round {doneRounds.length + 1}</div>
                   <div style={{ fontFamily: 'var(--font-d)', fontSize: 40, color: '#f0ece2', margin: '8px 0' }}>{fmt(roundTime)}</div>
                 </div>
@@ -285,8 +339,8 @@ export default function CheckInPage() {
               return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'rgba(255,255,255,.02)', borderRadius: 6, fontSize: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ color: '#888' }}>R{r.round_number}</span>
-                  {opp && <span style={{ color: 'var(--text-muted)' }}>vs {opp.profiles?.display_name?.split(' ')[0]}</span>}
-                  {ev.length > 0 && <span style={{ color: 'var(--text-muted)' }}>{ev.map(e => e.technique).join(', ')}</span>}
+                  {opp && <span style={{ color: 'var(--text-dim)' }}>vs {opp.profiles?.display_name?.split(' ')[0]}</span>}
+                  {ev.length > 0 && <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>{ev.map(e => e.technique).join(', ')}</span>}
                 </div>
                 <span style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-d)' }}>{fmt(r.duration_seconds || 0)}</span>
               </div>;
@@ -305,13 +359,10 @@ export default function CheckInPage() {
             ))}</div>
           </div>
           <button className="btn btn-primary" onClick={doCheckIn} disabled={busy} style={{ padding: '20px 24px', fontSize: 17, marginBottom: 16 }}>{busy ? '...' : 'Check In'}</button>
-
-          {/* Past session + recent */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-            <button onClick={() => setShowPast(!showPast)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>{showPast ? '✕ Cancel' : '+ Add Past Session'}</button>
-            <button onClick={() => setShowRecent(!showRecent)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>{showRecent ? '✕ Hide' : 'Recent Sessions'}</button>
+            <button onClick={() => setShowPast(!showPast)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>{showPast ? '✕ Cancel' : '+ Past Session'}</button>
+            <button onClick={() => setShowRecent(!showRecent)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>{showRecent ? '✕ Hide' : 'Recent'}</button>
           </div>
-
           {showPast && (
             <form onSubmit={addPastSession} className="card" style={{ marginBottom: 16 }}>
               <div className="label">Log Past Session</div>
@@ -330,22 +381,13 @@ export default function CheckInPage() {
               <button className="btn btn-primary btn-small" type="submit" disabled={busy}>Save</button>
             </form>
           )}
-
           {showRecent && recent.length > 0 && (
-            <div className="card">
-              <div className="label">Recent Sessions</div>
-              {recent.map(s => (
-                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-                  <div>
-                    <span style={{ fontSize: 13, color: '#ccc' }}>{new Date(s.checked_in_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                    <span style={{ fontSize: 12, color: SESSION_TYPES.find(t => t.id === s.session_type)?.color, marginLeft: 8 }}>{s.session_type}</span>
-                    {s.energy_rating && <span style={{ marginLeft: 6 }}>{ENERGY[s.energy_rating - 1]?.emoji}</span>}
-                    {s.duration_minutes && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 6 }}>{s.duration_minutes}m</span>}
-                  </div>
-                  <button onClick={() => deleteSession(s.id)} style={{ background: 'none', border: 'none', color: '#ef5350', cursor: 'pointer', fontSize: 11 }}>Delete</button>
-                </div>
-              ))}
-            </div>
+            <div className="card">{recent.map(s => (
+              <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                <div><span style={{ fontSize: 13, color: '#ccc' }}>{new Date(s.checked_in_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span><span style={{ fontSize: 12, color: SESSION_TYPES.find(t => t.id === s.session_type)?.color, marginLeft: 8 }}>{s.session_type}</span>{s.energy_rating && <span style={{ marginLeft: 4 }}>{ENERGY[s.energy_rating - 1]?.emoji}</span>}</div>
+                <button onClick={() => deleteSession(s.id)} style={{ background: 'none', border: 'none', color: '#ef5350', cursor: 'pointer', fontSize: 11 }}>Delete</button>
+              </div>
+            ))}</div>
           )}
         </div>
       )}
