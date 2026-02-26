@@ -18,11 +18,7 @@ export function AuthProvider({ children }) {
 
   async function loadGym(uid) {
     const { data } = await supabase
-      .from('gym_members')
-      .select('gym_id, role, gyms(*)')
-      .eq('user_id', uid)
-      .limit(1)
-      .maybeSingle();
+      .from('gym_members').select('gym_id, role, gyms(*)').eq('user_id', uid).limit(1).maybeSingle();
     if (data) { setGym(data.gyms); setGymRole(data.role); }
     else { setGym(null); setGymRole(null); }
   }
@@ -33,14 +29,12 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      const u = session?.user || null;
-      setUser(u);
+      const u = session?.user || null; setUser(u);
       if (u) Promise.all([loadProfile(u.id), loadGym(u.id)]).finally(() => setLoading(false));
       else setLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      const u = session?.user || null;
-      setUser(u);
+      const u = session?.user || null; setUser(u);
       if (u) Promise.all([loadProfile(u.id), loadGym(u.id)]).finally(() => setLoading(false));
       else { setProfile(null); setGym(null); setGymRole(null); setLoading(false); }
     });
