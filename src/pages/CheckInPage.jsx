@@ -287,7 +287,8 @@ export default function CheckInPage() {
   const [events, setEvents] = useState([]);
   const [customTech, setCustomTech] = useState('');
   const [customCat, setCustomCat] = useState('submission');
-  const [roundOpponent, setRoundOpponent] = useState(null); // set in round_log
+  const [roundOpponent, setRoundOpponent] = useState(null);
+  const [roundResult, setRoundResult] = useState(null);
   const [energy, setEnergy] = useState(null);
   const [note, setNote] = useState('');
   const [matchedCurr, setMatchedCurr] = useState(null);
@@ -350,10 +351,21 @@ export default function CheckInPage() {
       if (curr?.length) setMatchedCurr(curr);
     }
 
-    const { data: m } = await supabase.from('gym_members')
-      .select('user_id, profiles(display_name, avatar_emoji, avatar_url, belt)')
+    const { data: gymMembers } = await supabase.from('gym_members')
+      .select('user_id')
       .eq('gym_id', gym.id);
-    setMembers((m || []).filter(x => x.user_id !== user.id));
+    const memberIds = (gymMembers || []).map(m => m.user_id).filter(id => id !== user.id);
+    if (memberIds.length > 0) {
+      const { data: profilesData } = await supabase.from('profiles')
+        .select('id, display_name, avatar_emoji, avatar_url, belt')
+        .in('id', memberIds);
+      setMembers(memberIds.map(id => ({
+        user_id: id,
+        profiles: profilesData?.find(p => p.id === id) || null,
+      })));
+    } else {
+      setMembers([]);
+    }
 
     const { data: rec } = await supabase.from('checkins').select('*').eq('user_id', user.id).eq('gym_id', gym.id).not('checked_out_at', 'is', null).order('checked_in_at', { ascending: false }).limit(20);
     setRecent(rec || []);
@@ -399,7 +411,7 @@ export default function CheckInPage() {
   function doEndRoundPrompt() {
     setFrozenRoundTime(roundTime);
     setEvents([]); setDirection('offensive'); setCustomTech('');
-    setPendingSub(null); setRoundOpponent(null);
+    setPendingSub(null); setRoundOpponent(null); setRoundResult(null);
     setPhase('round_log');
   }
 
@@ -422,7 +434,7 @@ export default function CheckInPage() {
   async function doEndRound(skip = false) {
     setBusy(true);
     const opp = roundOpponent;
-    const updates = { ended_at: new Date().toISOString() };
+    const updates = { ended_at: new Date().toISOString(), result: roundResult || null };
     if (opp?.type === 'member' && opp.memberId) {
       updates.opponent_id = opp.memberId;
       updates.opponent_belt = members.find(m => m.user_id === opp.memberId)?.profiles?.belt || null;
@@ -441,6 +453,7 @@ export default function CheckInPage() {
       ...round, ...updates, duration_seconds: frozenRoundTime, _events: skip ? [] : events,
       _oppName: opp?.type === 'member' ? members.find(m => m.user_id === opp.memberId)?.profiles?.display_name : opp?.guestName,
       _oppBelt: updates.opponent_belt,
+      _result: updates.result,
     }]);
     setRound(null); setPhase('main'); setBusy(false);
   }
@@ -484,7 +497,7 @@ export default function CheckInPage() {
       const { data: ins, error: err } = await supabase.from('checkins').insert({
         user_id: user.id, gym_id: gym.id, session_type: pastType,
         checked_in_at: startDt.toISOString(), checked_out_at: endDt.toISOString(),
-        duration_minutes: dur, energy_rating: pastEnergy,
+        energy_rating: pastEnergy,
         note: pastNote.trim() || null,
       }).select().single();
       if (err) throw err;
@@ -621,6 +634,20 @@ export default function CheckInPage() {
           </select>
           <input className="input" placeholder="Other..." value={customTech} onChange={e => setCustomTech(e.target.value)} onKeyDown={e => { if(e.key==='Enter'){e.preventDefault();addCustom();} }} style={{ flex:1, padding:'7px 10px', fontSize:12 }} />
           <button onClick={addCustom} style={{ padding:'7px 12px', borderRadius:8, background:'rgba(255,255,255,.04)', border:'1px solid var(--border)', color:'var(--text-dim)', fontSize:12, cursor:'pointer' }}>+</button>
+        </div>
+
+        {/* Result */}
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:11, color:'var(--text-dim)', textTransform:'uppercase', letterSpacing:1, fontWeight:600, marginBottom:8 }}>Result</div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
+            {[{v:'win',l:'🏆 Win',c:'#66bb6a'},{v:'draw',l:'🤝 Draw',c:'#ffb74d'},{v:'loss',l:'😤 Loss',c:'#ef5350'}].map(r => (
+              <button key={r.v} onClick={() => setRoundResult(prev => prev===r.v?null:r.v)} style={{
+                padding:'12px 0', borderRadius:10, border: roundResult===r.v?`1px solid ${r.c}`:'1px solid var(--border)',
+                background: roundResult===r.v?`${r.c}18`:'rgba(255,255,255,.03)',
+                color: roundResult===r.v?r.c:'var(--text-muted)', fontWeight:600, fontSize:13, cursor:'pointer',
+              }}>{r.l}</button>
+            ))}
+          </div>
         </div>
 
         <button className="btn btn-primary" onClick={() => doEndRound(false)} disabled={busy} style={{ marginBottom:8 }}>
@@ -772,7 +799,14 @@ export default function CheckInPage() {
                         )}
                         {ev.length > 0 && <span style={{ color:'var(--text-muted)', fontSize:10 }}>{ev.map(e=>e.technique).join(', ')}</span>}
                       </div>
-                      <span style={{ color:'var(--text-dim)', fontFamily:'var(--font-d)' }}>{fmt(r.duration_seconds||0)}</span>
+                      <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                        {(r._result || r.result) && (
+                          <span style={{ fontSize:10, fontWeight:700, color: (r._result||r.result)==='win'?'#66bb6a':(r._result||r.result)==='loss'?'#ef5350':'#ffb74d' }}>
+                            {(r._result||r.result)==='win'?'W':(r._result||r.result)==='loss'?'L':'D'}
+                          </span>
+                        )}
+                        <span style={{ color:'var(--text-dim)', fontFamily:'var(--font-d)' }}>{fmt(r.duration_seconds||0)}</span>
+                      </div>
                     </div>
                   );
                 })}
