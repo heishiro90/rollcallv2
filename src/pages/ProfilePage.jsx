@@ -20,6 +20,11 @@ export default function ProfilePage() {
   const [stripes, setStripes] = useState(profile?.stripes || 0);
   const [emoji, setEmoji] = useState(profile?.avatar_emoji || '🥋');
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
+  const [age, setAge] = useState(profile?.age || '');
+  const [weightKg, setWeightKg] = useState(profile?.weight_kg || '');
+  const [instagram, setInstagram] = useState(profile?.instagram || '');
+  const [youtube, setYoutube] = useState(profile?.youtube || '');
+  const [tiktok, setTiktok] = useState(profile?.tiktok || '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [goals, setGoals] = useState([]);
@@ -69,7 +74,18 @@ export default function ProfilePage() {
 
   async function saveProfile(e) {
     e.preventDefault(); setSaving(true);
-    await supabase.from('profiles').update({ display_name: dn, belt, stripes: parseInt(stripes), avatar_emoji: emoji, avatar_url: avatarUrl.trim() || null }).eq('id', user.id);
+    await supabase.from('profiles').update({
+      display_name: dn,
+      belt,
+      stripes: parseInt(stripes),
+      avatar_emoji: emoji,
+      avatar_url: avatarUrl.trim() || null,
+      age: age ? parseInt(age) : null,
+      weight_kg: weightKg ? parseFloat(weightKg) : null,
+      instagram: instagram.trim() || null,
+      youtube: youtube.trim() || null,
+      tiktok: tiktok.trim() || null,
+    }).eq('id', user.id);
     await refreshData(); setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2000);
   }
 
@@ -105,7 +121,9 @@ export default function ProfilePage() {
   async function createBadge(e) { e.preventDefault(); if (!newBadge.trim()) return; await supabase.from('badges').insert({ gym_id: gym.id, name: newBadge.trim(), emoji: newBadgeE, created_by: user.id }); setNewBadge(''); setNewBadgeE('🏅'); loadAll(); }
   async function awardBadge(e) { e.preventDefault(); if (!awardB || !awardU) return; await supabase.from('user_badges').insert({ badge_id: awardB, user_id: awardU, gym_id: gym.id, awarded_by: user.id }); setAwardB(''); setAwardU(''); }
 
-  const avatarPreview = avatarUrl.trim() ? <img src={avatarUrl} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }} /> : <span style={{ fontSize: 36 }}>{emoji}</span>;
+  const avatarPreview = avatarUrl.trim()
+    ? <img src={avatarUrl} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }} />
+    : <span style={{ fontSize: 36 }}>{emoji}</span>;
 
   return (
     <div className="container" style={{ paddingTop: 24, paddingBottom: 100 }}>
@@ -120,7 +138,11 @@ export default function ProfilePage() {
         </div>
         <div style={{ marginBottom: 10 }}>
           <label className="label">Avatar Emoji</label>
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{AVATARS.map(e => <button key={e} type="button" onClick={() => { setEmoji(e); setAvatarUrl(''); }} style={{ width: 32, height: 32, fontSize: 16, background: emoji === e && !avatarUrl ? 'var(--accent)' : 'rgba(255,255,255,.03)', border: emoji === e && !avatarUrl ? '1px solid var(--accent)' : '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{e}</button>)}</div>
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {AVATARS.map(e => (
+              <button key={e} type="button" onClick={() => { setEmoji(e); setAvatarUrl(''); }} style={{ width: 32, height: 32, fontSize: 16, background: emoji === e && !avatarUrl ? 'var(--accent)' : 'rgba(255,255,255,.03)', border: emoji === e && !avatarUrl ? '1px solid var(--accent)' : '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{e}</button>
+            ))}
+          </div>
         </div>
         <div style={{ marginBottom: 10 }}>
           <label className="label">Or custom image URL</label>
@@ -132,6 +154,38 @@ export default function ProfilePage() {
           <div><label className="label">Stripes</label><select className="input" value={stripes} onChange={e => setStripes(e.target.value)}>{[0,1,2,3,4].map(s => <option key={s} value={s}>{s}</option>)}</select></div>
         </div>
         <div style={{ marginBottom: 10 }}><BeltSVG belt={belt} stripes={parseInt(stripes)} width={140} height={28} /></div>
+
+        {/* Age & Body weight */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+          <div>
+            <label className="label">Age</label>
+            <input className="input" type="number" min="1" max="100" placeholder="e.g. 28" value={age} onChange={e => setAge(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Body weight (kg)</label>
+            <input className="input" type="number" min="30" max="200" step="0.5" placeholder="e.g. 80.5" value={weightKg} onChange={e => setWeightKg(e.target.value)} />
+          </div>
+        </div>
+
+        {/* Social media */}
+        <div style={{ marginBottom: 10 }}>
+          <label className="label">Social Media</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16, width: 22, textAlign: 'center', flexShrink: 0 }}>📷</span>
+              <input className="input" placeholder="Instagram (without @)" value={instagram} onChange={e => setInstagram(e.target.value)} style={{ flex: 1 }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16, width: 22, textAlign: 'center', flexShrink: 0 }}>▶️</span>
+              <input className="input" placeholder="YouTube handle or URL" value={youtube} onChange={e => setYoutube(e.target.value)} style={{ flex: 1 }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 16, width: 22, textAlign: 'center', flexShrink: 0 }}>🎵</span>
+              <input className="input" placeholder="TikTok (without @)" value={tiktok} onChange={e => setTiktok(e.target.value)} style={{ flex: 1 }} />
+            </div>
+          </div>
+        </div>
+
         <button className="btn btn-primary" type="submit" disabled={saving}>{saved ? 'Saved ✓' : saving ? '...' : 'Save'}</button>
       </form>
 
@@ -250,97 +304,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-// ============================================================
-// PROFILE PAGE PATCH — add these fields to your existing ProfilePage.jsx
-// ============================================================
-// 
-// 1. Add to your state declarations (near existing belt/display_name states):
-//
-const [age, setAge] = useState('');
-const [weightKg, setWeightKg] = useState('');
-const [instagram, setInstagram] = useState('');
-const [youtube, setYoutube] = useState('');
-const [tiktok, setTiktok] = useState('');
-
-// 2. In your load/useEffect where you fetch the profile, add:
-//
-setAge(data.age || '');
-setWeightKg(data.weight_kg || '');
-setInstagram(data.instagram || '');
-setYoutube(data.youtube || '');
-setTiktok(data.tiktok || '');
-
-// 3. In your save/update function, add these fields to the update object:
-//
-age: age ? parseInt(age) : null,
-weight_kg: weightKg ? parseFloat(weightKg) : null,
-instagram: instagram.trim() || null,
-youtube: youtube.trim() || null,
-tiktok: tiktok.trim() || null,
-
-// 4. Add this JSX block anywhere in your form (e.g. after belt selector):
-
-<>
-  {/* Age & Weight */}
-  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-    <div>
-      <div className="label">Age</div>
-      <input
-        className="input"
-        type="number"
-        min="1" max="100"
-        placeholder="e.g. 28"
-        value={age}
-        onChange={e => setAge(e.target.value)}
-      />
-    </div>
-    <div>
-      <div className="label">Weight (kg)</div>
-      <input
-        className="input"
-        type="number"
-        min="30" max="200"
-        step="0.5"
-        placeholder="e.g. 80.5"
-        value={weightKg}
-        onChange={e => setWeightKg(e.target.value)}
-      />
-    </div>
-  </div>
-
-  {/* Social Links */}
-  <div className="label" style={{ marginBottom: 8 }}>Social Media</div>
-  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>📷</span>
-      <input
-        className="input"
-        placeholder="Instagram handle (without @)"
-        value={instagram}
-        onChange={e => setInstagram(e.target.value)}
-        style={{ flex: 1 }}
-      />
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>▶</span>
-      <input
-        className="input"
-        placeholder="YouTube channel (handle or URL)"
-        value={youtube}
-        onChange={e => setYoutube(e.target.value)}
-        style={{ flex: 1 }}
-      />
-    </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>🎵</span>
-      <input
-        className="input"
-        placeholder="TikTok handle (without @)"
-        value={tiktok}
-        onChange={e => setTiktok(e.target.value)}
-        style={{ flex: 1 }}
-      />
-    </div>
-  </div>
-</>
