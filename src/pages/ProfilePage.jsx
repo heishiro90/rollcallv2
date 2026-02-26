@@ -250,3 +250,97 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+// ============================================================
+// PROFILE PAGE PATCH — add these fields to your existing ProfilePage.jsx
+// ============================================================
+// 
+// 1. Add to your state declarations (near existing belt/display_name states):
+//
+const [age, setAge] = useState('');
+const [weightKg, setWeightKg] = useState('');
+const [instagram, setInstagram] = useState('');
+const [youtube, setYoutube] = useState('');
+const [tiktok, setTiktok] = useState('');
+
+// 2. In your load/useEffect where you fetch the profile, add:
+//
+setAge(data.age || '');
+setWeightKg(data.weight_kg || '');
+setInstagram(data.instagram || '');
+setYoutube(data.youtube || '');
+setTiktok(data.tiktok || '');
+
+// 3. In your save/update function, add these fields to the update object:
+//
+age: age ? parseInt(age) : null,
+weight_kg: weightKg ? parseFloat(weightKg) : null,
+instagram: instagram.trim() || null,
+youtube: youtube.trim() || null,
+tiktok: tiktok.trim() || null,
+
+// 4. Add this JSX block anywhere in your form (e.g. after belt selector):
+
+<>
+  {/* Age & Weight */}
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+    <div>
+      <div className="label">Age</div>
+      <input
+        className="input"
+        type="number"
+        min="1" max="100"
+        placeholder="e.g. 28"
+        value={age}
+        onChange={e => setAge(e.target.value)}
+      />
+    </div>
+    <div>
+      <div className="label">Weight (kg)</div>
+      <input
+        className="input"
+        type="number"
+        min="30" max="200"
+        step="0.5"
+        placeholder="e.g. 80.5"
+        value={weightKg}
+        onChange={e => setWeightKg(e.target.value)}
+      />
+    </div>
+  </div>
+
+  {/* Social Links */}
+  <div className="label" style={{ marginBottom: 8 }}>Social Media</div>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>📷</span>
+      <input
+        className="input"
+        placeholder="Instagram handle (without @)"
+        value={instagram}
+        onChange={e => setInstagram(e.target.value)}
+        style={{ flex: 1 }}
+      />
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>▶</span>
+      <input
+        className="input"
+        placeholder="YouTube channel (handle or URL)"
+        value={youtube}
+        onChange={e => setYoutube(e.target.value)}
+        style={{ flex: 1 }}
+      />
+    </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>🎵</span>
+      <input
+        className="input"
+        placeholder="TikTok handle (without @)"
+        value={tiktok}
+        onChange={e => setTiktok(e.target.value)}
+        style={{ flex: 1 }}
+      />
+    </div>
+  </div>
+</>
