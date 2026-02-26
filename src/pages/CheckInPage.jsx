@@ -16,6 +16,8 @@ const ENERGY = [
   { val: 5, emoji: '🔥', label: 'Great' },
 ];
 const POSITIONS = ['Mount', 'Back', 'Closed Guard', 'Open Guard', 'Half Guard', 'Side Control', 'Standing', 'Turtle', 'Leg Entangle'];
+const BELTS = ['white', 'blue', 'purple', 'brown', 'black'];
+const BELT_COLORS = { white: '#f5f5f0', blue: '#1a5fb4', purple: '#7b2d8e', brown: '#8b5e3c', black: '#555' };
 
 const CATEGORIES = [
   { id: 'takedown', label: 'Takedowns', techniques: ['Single Leg', 'Double Leg', 'Arm Drag', 'Snap Down', 'Body Lock Takedown', 'Ankle Pick', 'Outside Trip', 'Inside Trip', 'Hip Throw', 'Shoulder Throw', 'Foot Sweep', 'Drop Throw', 'Guard Pull'] },
@@ -35,6 +37,143 @@ const DRILL_CATS = [
 
 function fmt(sec) { const m = Math.floor(sec / 60), s = sec % 60; return `${m}:${String(s).padStart(2, '0')}`; }
 function fmtLong(sec) { const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60); return h > 0 ? `${h}h ${m}m` : `${m}m`; }
+
+// ─── Opponent Picker ───
+function OpponentPicker({ members, value, onChange }) {
+  // value: { type: 'member'|'guest'|null, memberId, memberName, guestName, guestBelt }
+  const [mode, setMode] = useState(value?.type || null);
+  const [memberId, setMemberId] = useState(value?.memberId || '');
+  const [guestName, setGuestName] = useState(value?.guestName || '');
+  const [guestBelt, setGuestBelt] = useState(value?.guestBelt || 'white');
+
+  function emit(updates) {
+    const next = { type: mode, memberId, guestName, guestBelt, ...updates };
+    onChange(next);
+  }
+
+  function selectMode(m) {
+    setMode(m);
+    if (m === null) onChange(null);
+    else onChange({ type: m, memberId: '', guestName: '', guestBelt: 'white' });
+  }
+
+  function handleMemberChange(id) {
+    setMemberId(id);
+    const m = members.find(x => x.user_id === id);
+    onChange({ type: 'member', memberId: id, memberName: m?.profiles?.display_name || '', guestName: '', guestBelt: '' });
+  }
+
+  function handleGuestName(n) {
+    setGuestName(n);
+    emit({ type: 'guest', guestName: n });
+  }
+
+  function handleGuestBelt(b) {
+    setGuestBelt(b);
+    emit({ type: 'guest', guestBelt: b });
+  }
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600, marginBottom: 6 }}>
+        Adversaire
+      </div>
+
+      {/* Mode tabs */}
+      <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+        {[
+          { id: null, label: 'Sans adversaire' },
+          { id: 'member', label: '🏋️ Membre du gym' },
+          { id: 'guest', label: '🥋 Invité / Externe' },
+        ].map(opt => (
+          <button
+            key={String(opt.id)}
+            type="button"
+            onClick={() => selectMode(opt.id)}
+            style={{
+              padding: '6px 10px', fontSize: 11, borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600,
+              background: mode === opt.id ? 'var(--accent)' : 'rgba(255,255,255,.04)',
+              color: mode === opt.id ? '#fff' : 'var(--text-dim)',
+              flex: 1,
+            }}
+          >{opt.label}</button>
+        ))}
+      </div>
+
+      {/* Member select */}
+      {mode === 'member' && (
+        <select
+          value={memberId}
+          onChange={e => handleMemberChange(e.target.value)}
+          style={{ width: '100%', padding: '9px 10px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: memberId ? '#f0ece2' : 'var(--text-muted)', fontSize: 13 }}
+        >
+          <option value="">Choisir un membre...</option>
+          {members.map(m => {
+            const belt = m.profiles?.belt || 'white';
+            return (
+              <option key={m.user_id} value={m.user_id}>
+                {m.profiles?.avatar_emoji || '🥋'} {m.profiles?.display_name} — {belt[0].toUpperCase() + belt.slice(1)}
+              </option>
+            );
+          })}
+        </select>
+      )}
+
+      {/* Guest entry */}
+      {mode === 'guest' && (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <input
+            className="input"
+            placeholder="Nom de l'adversaire"
+            value={guestName}
+            onChange={e => handleGuestName(e.target.value)}
+            style={{ flex: 2 }}
+          />
+          {/* Belt picker */}
+          <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+            {BELTS.map(b => (
+              <button
+                key={b}
+                type="button"
+                onClick={() => handleGuestBelt(b)}
+                title={b[0].toUpperCase() + b.slice(1)}
+                style={{
+                  width: 20, height: 20, borderRadius: '50%', border: guestBelt === b ? '2px solid #fff' : '2px solid transparent',
+                  background: BELT_COLORS[b], cursor: 'pointer', padding: 0, outline: 'none',
+                  boxShadow: b === 'white' ? 'inset 0 0 0 1px #aaa' : 'none',
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Preview */}
+      {mode === 'member' && memberId && (() => {
+        const m = members.find(x => x.user_id === memberId);
+        if (!m) return null;
+        const belt = m.profiles?.belt || 'white';
+        return (
+          <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', background: 'rgba(255,255,255,.03)', borderRadius: 6 }}>
+            <span style={{ fontSize: 16 }}>{m.profiles?.avatar_emoji || '🥋'}</span>
+            <span style={{ fontSize: 12, color: '#ddd' }}>{m.profiles?.display_name}</span>
+            <span style={{ width: 10, height: 10, borderRadius: '50%', background: BELT_COLORS[belt], border: belt === 'white' ? '1px solid #aaa' : 'none', display: 'inline-block' }} />
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{belt[0].toUpperCase() + belt.slice(1)}</span>
+          </div>
+        );
+      })()}
+
+      {mode === 'guest' && guestName && (
+        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', background: 'rgba(255,255,255,.03)', borderRadius: 6 }}>
+          <span style={{ fontSize: 16 }}>🥋</span>
+          <span style={{ fontSize: 12, color: '#ddd' }}>{guestName}</span>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: BELT_COLORS[guestBelt], border: guestBelt === 'white' ? '1px solid #aaa' : 'none', display: 'inline-block' }} />
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{guestBelt[0].toUpperCase() + guestBelt.slice(1)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CheckInPage() {
   const { user, gym, profile } = useAuth();
@@ -56,7 +195,11 @@ export default function CheckInPage() {
   const [note, setNote] = useState('');
   const [matchedCurr, setMatchedCurr] = useState(null);
   const [members, setMembers] = useState([]);
-  const [opponent, setOpponent] = useState('');
+
+  // Opponent state — unified object
+  const [opponentData, setOpponentData] = useState(null);
+  // { type: 'member'|'guest', memberId, memberName, guestName, guestBelt }
+
   const [injuries, setInjuries] = useState([]);
   const [injPart, setInjPart] = useState('Knee');
   const [injType, setInjType] = useState('Soreness');
@@ -70,9 +213,7 @@ export default function CheckInPage() {
   const [pastNote, setPastNote] = useState('');
   const [recent, setRecent] = useState([]);
   const [showRecent, setShowRecent] = useState(false);
-  // Position picker for submissions
-  const [pendingSub, setPendingSub] = useState(null); // { catId, technique }
-  // Techniques drilled
+  const [pendingSub, setPendingSub] = useState(null);
   const [techs, setTechs] = useState([]);
   const [techName, setTechName] = useState('');
   const [techCat, setTechCat] = useState('guard');
@@ -103,23 +244,41 @@ export default function CheckInPage() {
   async function doCheckIn() {
     setBusy(true);
     const { data } = await supabase.from('checkins').insert({ user_id: user.id, gym_id: gym.id, session_type: selType }).select().single();
-    if (data) { setCheckin(data); setDoneRounds([]); setRound(null); const today = data.checked_in_at.split('T')[0]; const { data: curr } = await supabase.from('class_curriculum').select('*, curriculum_techniques(*)').eq('gym_id', gym.id).eq('class_date', today); if (curr?.length) setMatchedCurr(curr); }
+    if (data) {
+      setCheckin(data); setDoneRounds([]); setRound(null); setOpponentData(null);
+      const today = data.checked_in_at.split('T')[0];
+      const { data: curr } = await supabase.from('class_curriculum').select('*, curriculum_techniques(*)').eq('gym_id', gym.id).eq('class_date', today);
+      if (curr?.length) setMatchedCurr(curr);
+    }
     setBusy(false);
   }
+
   async function doStartRound() {
     setBusy(true);
-    const { data } = await supabase.from('rounds').insert({ checkin_id: checkin.id, user_id: user.id, gym_id: gym.id, round_number: doneRounds.length + 1, opponent_id: opponent || null }).select().single();
+    // Build opponent fields
+    const opp = opponentData;
+    const insertData = {
+      checkin_id: checkin.id,
+      user_id: user.id,
+      gym_id: gym.id,
+      round_number: doneRounds.length + 1,
+      opponent_id: opp?.type === 'member' && opp.memberId ? opp.memberId : null,
+      opponent_name: opp?.type === 'guest' && opp.guestName ? opp.guestName : (opp?.type === 'member' && opp.memberName ? opp.memberName : null),
+      opponent_belt: opp?.type === 'guest' ? opp.guestBelt || null : (opp?.type === 'member' ? members.find(m => m.user_id === opp.memberId)?.profiles?.belt || null : null),
+    };
+    const { data } = await supabase.from('rounds').insert(insertData).select().single();
     if (data) setRound(data);
     setBusy(false);
   }
-  function doEndRoundPrompt() { setFrozenRoundTime(roundTime); setEvents([]); setDirection('offensive'); setCustomTech(''); setPendingSub(null); setPhase('round_log'); }
+
+  function doEndRoundPrompt() {
+    setFrozenRoundTime(roundTime);
+    setEvents([]); setDirection('offensive'); setCustomTech(''); setPendingSub(null);
+    setPhase('round_log');
+  }
 
   function tapTechnique(cat, tech) {
-    // If it's a submission, ask for position
-    if (cat.askPosition) {
-      setPendingSub({ catId: cat.id, technique: tech });
-      return;
-    }
+    if (cat.askPosition) { setPendingSub({ catId: cat.id, technique: tech }); return; }
     setEvents(prev => [...prev, { event_type: cat.id, direction, technique: tech, position: null }]);
   }
   function confirmSubPosition(pos) {
@@ -137,8 +296,9 @@ export default function CheckInPage() {
       await supabase.from('round_events').insert(events.map(e => ({ round_id: round.id, checkin_id: checkin.id, user_id: user.id, gym_id: gym.id, event_type: e.event_type, direction: e.direction, technique: e.technique, position: e.position })));
     }
     setDoneRounds(prev => [...prev, { ...round, ended_at: new Date().toISOString(), duration_seconds: frozenRoundTime, _events: skip ? [] : events }]);
-    setRound(null); setPhase('main'); setBusy(false);
+    setRound(null); setOpponentData(null); setPhase('main'); setBusy(false);
   }
+
   function doCheckOutPrompt() { setEnergy(null); setNote(''); setInjuries([]); setTechs([]); setTechName(''); setTechCat('guard'); setPhase('debrief'); }
   function addInjury() { setInjuries(prev => [...prev, { body_part: injPart, injury_type: injType, severity: injSev }]); }
   function addTech() { if (!techName.trim()) return; setTechs(prev => [...prev, { name: techName.trim(), category: techCat }]); setTechName(''); }
@@ -152,7 +312,7 @@ export default function CheckInPage() {
     await supabase.from('checkins').update(updates).eq('id', checkin.id);
     if (!skip && injuries.length > 0) await supabase.from('injuries').insert(injuries.map(inj => ({ user_id: user.id, checkin_id: checkin.id, body_part: inj.body_part, injury_type: inj.injury_type, severity: inj.severity })));
     if (!skip && techs.length > 0) await supabase.from('techniques').insert(techs.map(t => ({ checkin_id: checkin.id, user_id: user.id, gym_id: gym.id, name: t.name, category: t.category })));
-    setCheckin(null); setRound(null); setDoneRounds([]); setMatchedCurr(null); setPhase('main'); setBusy(false); load();
+    setCheckin(null); setRound(null); setDoneRounds([]); setMatchedCurr(null); setOpponentData(null); setPhase('main'); setBusy(false); load();
   }
 
   async function addPastSession(e) {
@@ -162,14 +322,23 @@ export default function CheckInPage() {
     await supabase.from('checkins').insert({ user_id: user.id, gym_id: gym.id, session_type: pastType, checked_in_at: startDt.toISOString(), checked_out_at: endDt.toISOString(), duration_minutes: dur > 0 ? dur : 60, energy_rating: pastEnergy, note: pastNote.trim() || null });
     setShowPast(false); setPastDate(''); setPastNote(''); setBusy(false); load();
   }
-  async function deleteSession(id) { if (!confirm('Delete this session?')) return; await supabase.from('checkins').delete().eq('id', id); load(); }
 
-  function Avatar({ p, size = 20 }) {
-    if (p?.avatar_url) return <img src={p.avatar_url} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover' }} />;
-    return <span style={{ fontSize: size * 0.7 }}>{p?.avatar_emoji || '🥋'}</span>;
+  async function deleteSession(id) { if (!confirm('Supprimer cette session ?')) return; await supabase.from('checkins').delete().eq('id', id); load(); }
+
+  // Helper: display opponent label for a done round
+  function oppLabel(r) {
+    if (r.opponent_id) {
+      const m = members.find(x => x.user_id === r.opponent_id);
+      return m ? `vs ${m.profiles?.display_name?.split(' ')[0]}` : 'vs membre';
+    }
+    if (r.opponent_name) {
+      const belt = r.opponent_belt;
+      return `vs ${r.opponent_name}${belt ? ` (${belt[0].toUpperCase() + belt.slice(1)})` : ''}`;
+    }
+    return null;
   }
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>Loading...</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>Chargement...</div>;
 
   // ─── ROUND LOG ───
   if (phase === 'round_log') {
@@ -178,50 +347,63 @@ export default function CheckInPage() {
     return (
       <div className="container fade-in" style={{ paddingTop: 24, paddingBottom: 100 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div><h2 style={{ fontFamily: 'var(--font-d)', fontSize: 22 }}>Round {doneRounds.length + 1}</h2><p style={{ color: 'var(--text-dim)', fontSize: 14 }}>{fmt(frozenRoundTime)}</p></div>
+          <div>
+            <h2 style={{ fontFamily: 'var(--font-d)', fontSize: 22 }}>Round {doneRounds.length + 1}</h2>
+            <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>{fmt(frozenRoundTime)}</p>
+          </div>
           {events.length > 0 && <div style={{ fontSize: 12 }}><span style={{ color: '#66bb6a' }}>+{offC}</span><span style={{ color: '#ef5350', marginLeft: 8 }}>-{defC}</span></div>}
         </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, borderRadius: 10, overflow: 'hidden', marginBottom: 14, border: '1px solid var(--border)' }}>
-          {[{ d: 'offensive', l: '✅ I did', c: '#66bb6a' }, { d: 'defensive', l: '😤 Done to me', c: '#ef5350' }].map(x => (
+          {[{ d: 'offensive', l: '✅ J\'ai fait', c: '#66bb6a' }, { d: 'defensive', l: '😤 Subi', c: '#ef5350' }].map(x => (
             <button key={x.d} onClick={() => setDirection(x.d)} style={{ padding: '11px 0', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: direction === x.d ? `${x.c}18` : 'transparent', color: direction === x.d ? x.c : 'var(--text-muted)' }}>{x.l}</button>
           ))}
         </div>
 
-        {/* Position picker modal */}
+        {/* Position picker for submissions */}
         {pendingSub && (
           <div className="card" style={{ marginBottom: 14, border: '1px solid var(--accent)', padding: 14 }}>
-            <div style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 8 }}>{pendingSub.technique} — from which position?</div>
+            <div style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 8 }}>{pendingSub.technique} — depuis quelle position ?</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
               {POSITIONS.map(p => (
                 <button key={p} onClick={() => confirmSubPosition(p)} style={{ padding: '7px 14px', fontSize: 12, borderRadius: 16, cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc' }}>{p}</button>
               ))}
             </div>
-            <button onClick={() => setPendingSub(null)} style={{ marginTop: 8, background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={() => setPendingSub(null)} style={{ marginTop: 8, background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer' }}>Annuler</button>
           </div>
         )}
 
-        {events.length > 0 && <div style={{ marginBottom: 14, display: 'flex', flexWrap: 'wrap', gap: 5 }}>{events.map((e, i) => (
-          <span key={i} onClick={() => removeEvent(i)} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer', fontWeight: 500, background: e.direction === 'offensive' ? 'rgba(102,187,106,.12)' : 'rgba(239,83,80,.12)', color: e.direction === 'offensive' ? '#66bb6a' : '#ef5350' }}>
-            {e.direction === 'offensive' ? '✅' : '😤'} {e.technique}{e.position ? ` (${e.position})` : ''} ×
-          </span>
-        ))}</div>}
+        {events.length > 0 && (
+          <div style={{ marginBottom: 14, display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {events.map((e, i) => (
+              <span key={i} onClick={() => removeEvent(i)} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer', fontWeight: 500, background: e.direction === 'offensive' ? 'rgba(102,187,106,.12)' : 'rgba(239,83,80,.12)', color: e.direction === 'offensive' ? '#66bb6a' : '#ef5350' }}>
+                {e.direction === 'offensive' ? '✅' : '😤'} {e.technique}{e.position ? ` (${e.position})` : ''} ×
+              </span>
+            ))}
+          </div>
+        )}
 
         {CATEGORIES.map(cat => (
           <div key={cat.id} style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 11, color: CAT_STYLE[cat.id]?.color || 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 5 }}>{cat.label}</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>{cat.techniques.map(t => (
-              <button key={t} onClick={() => tapTechnique(cat, t)} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 16, cursor: 'pointer', background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: '#bbb' }}>{t}</button>
-            ))}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {cat.techniques.map(t => (
+                <button key={t} onClick={() => tapTechnique(cat, t)} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 16, cursor: 'pointer', background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: '#bbb' }}>{t}</button>
+              ))}
+            </div>
           </div>
         ))}
 
         <div style={{ marginBottom: 18, display: 'flex', gap: 6 }}>
-          <select value={customCat} onChange={e => setCustomCat(e.target.value)} style={{ padding: '7px 8px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 11 }}>{CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}</select>
-          <input className="input" placeholder="Other..." value={customTech} onChange={e => setCustomTech(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }} style={{ flex: 1, padding: '7px 10px', fontSize: 12 }} />
+          <select value={customCat} onChange={e => setCustomCat(e.target.value)} style={{ padding: '7px 8px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 11 }}>
+            {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+          <input className="input" placeholder="Autre..." value={customTech} onChange={e => setCustomTech(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }} style={{ flex: 1, padding: '7px 10px', fontSize: 12 }} />
           <button onClick={addCustom} style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+</button>
         </div>
-        <button className="btn btn-primary" onClick={() => doEndRound(false)} disabled={busy} style={{ marginBottom: 8 }}>Save Round{events.length > 0 ? ` · ${events.length}` : ''}</button>
-        <button className="btn btn-secondary" onClick={() => doEndRound(true)} disabled={busy}>Skip</button>
+
+        <button className="btn btn-primary" onClick={() => doEndRound(false)} disabled={busy} style={{ marginBottom: 8 }}>Sauvegarder{events.length > 0 ? ` · ${events.length}` : ''}</button>
+        <button className="btn btn-secondary" onClick={() => doEndRound(true)} disabled={busy}>Passer</button>
       </div>
     );
   }
@@ -230,52 +412,68 @@ export default function CheckInPage() {
   if (phase === 'debrief') {
     return (
       <div className="container fade-in" style={{ paddingTop: 32, paddingBottom: 100 }}>
-        <h2 style={{ fontFamily: 'var(--font-d)', fontSize: 22, marginBottom: 4 }}>Session done</h2>
+        <h2 style={{ fontFamily: 'var(--font-d)', fontSize: 22, marginBottom: 4 }}>Session terminée</h2>
         <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 20 }}>{fmtLong(elapsed)} · {doneRounds.length} round{doneRounds.length !== 1 ? 's' : ''}</p>
 
         <div className="card" style={{ marginBottom: 16 }}>
-          <div className="label">How did it feel?</div>
-          <div style={{ display: 'flex', gap: 6 }}>{ENERGY.map(e => (
-            <button key={e.val} onClick={() => setEnergy(e.val)} style={{ flex: 1, padding: '12px 0', borderRadius: 10, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: energy === e.val ? 'var(--accent)' : 'rgba(255,255,255,.03)', border: energy === e.val ? '1px solid var(--accent)' : '1px solid var(--border)' }}>
-              <span style={{ fontSize: 20 }}>{e.emoji}</span>
-              <span style={{ fontSize: 10, color: energy === e.val ? '#fff' : 'var(--text-muted)' }}>{e.label}</span>
-            </button>
-          ))}</div>
+          <div className="label">Comment ça s'est passé ?</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {ENERGY.map(e => (
+              <button key={e.val} onClick={() => setEnergy(e.val)} style={{ flex: 1, padding: '12px 0', borderRadius: 10, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: energy === e.val ? 'var(--accent)' : 'rgba(255,255,255,.03)', border: energy === e.val ? '1px solid var(--accent)' : '1px solid var(--border)' }}>
+                <span style={{ fontSize: 20 }}>{e.emoji}</span>
+                <span style={{ fontSize: 10, color: energy === e.val ? '#fff' : 'var(--text-muted)' }}>{e.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Techniques drilled */}
         <div className="card" style={{ marginBottom: 16 }}>
-          <div className="label">Techniques Drilled During Class</div>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>What the coach taught before rolling</p>
-          <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>{DRILL_CATS.map(c => (
-            <button key={c.id} onClick={() => setTechCat(c.id)} style={{ padding: '5px 10px', fontSize: 11, borderRadius: 8, border: 'none', cursor: 'pointer', background: techCat === c.id ? 'var(--accent)' : 'rgba(255,255,255,.04)', color: techCat === c.id ? '#fff' : 'var(--text-dim)' }}>{c.label}</button>
-          ))}</div>
+          <div className="label">Techniques vues en cours</div>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>Ce que le coach a enseigné avant le rolling</p>
+          <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap' }}>
+            {DRILL_CATS.map(c => (
+              <button key={c.id} onClick={() => setTechCat(c.id)} style={{ padding: '5px 10px', fontSize: 11, borderRadius: 8, border: 'none', cursor: 'pointer', background: techCat === c.id ? 'var(--accent)' : 'rgba(255,255,255,.04)', color: techCat === c.id ? '#fff' : 'var(--text-dim)' }}>{c.label}</button>
+            ))}
+          </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <input className="input" placeholder="e.g. Scissor sweep from closed guard" value={techName} onChange={e => setTechName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTech(); } }} style={{ flex: 1 }} />
+            <input className="input" placeholder="ex: Scissor sweep depuis la closed guard" value={techName} onChange={e => setTechName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTech(); } }} style={{ flex: 1 }} />
             <button className="btn btn-secondary btn-small" onClick={addTech}>+</button>
           </div>
-          {techs.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>{techs.map((t, i) => (
-            <span key={i} onClick={() => setTechs(p => p.filter((_, j) => j !== i))} style={{ padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer', background: 'rgba(155,77,202,.12)', color: '#ce93d8', border: '1px solid rgba(155,77,202,.2)' }}>{DRILL_CATS.find(c => c.id === t.category)?.label?.slice(0, 2)} {t.name} ×</span>
-          ))}</div>}
+          {techs.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
+              {techs.map((t, i) => (
+                <span key={i} onClick={() => setTechs(p => p.filter((_, j) => j !== i))} style={{ padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer', background: 'rgba(155,77,202,.12)', color: '#ce93d8', border: '1px solid rgba(155,77,202,.2)' }}>
+                  {DRILL_CATS.find(c => c.id === t.category)?.label?.slice(0, 2)} {t.name} ×
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Injuries */}
         <div className="card" style={{ marginBottom: 16 }}>
-          <div className="label">Any injuries?</div>
-          {injuries.length > 0 && <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>{injuries.map((inj, i) => (
-            <span key={i} onClick={() => setInjuries(p => p.filter((_, j) => j !== i))} style={{ padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer', background: inj.severity === 'serious' ? 'rgba(239,83,80,.15)' : 'rgba(255,255,255,.06)', color: inj.severity === 'serious' ? '#ef5350' : '#aaa' }}>🩹 {inj.body_part} — {inj.injury_type} ×</span>
-          ))}</div>}
+          <div className="label">Des bobos ?</div>
+          {injuries.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+              {injuries.map((inj, i) => (
+                <span key={i} onClick={() => setInjuries(p => p.filter((_, j) => j !== i))} style={{ padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer', background: inj.severity === 'serious' ? 'rgba(239,83,80,.15)' : 'rgba(255,255,255,.06)', color: inj.severity === 'serious' ? '#ef5350' : '#aaa' }}>
+                  🩹 {inj.body_part} — {inj.injury_type} ×
+                </span>
+              ))}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
             <select value={injPart} onChange={e => setInjPart(e.target.value)} style={{ padding: '7px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc', fontSize: 12 }}>{BODY_PARTS.map(p => <option key={p}>{p}</option>)}</select>
             <select value={injType} onChange={e => setInjType(e.target.value)} style={{ padding: '7px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc', fontSize: 12 }}>{INJURY_TYPES.map(t => <option key={t}>{t}</option>)}</select>
-            <select value={injSev} onChange={e => setInjSev(e.target.value)} style={{ padding: '7px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc', fontSize: 12 }}><option value="minor">Minor</option><option value="moderate">Moderate</option><option value="serious">Serious</option></select>
-            <button onClick={addInjury} style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+ Add</button>
+            <select value={injSev} onChange={e => setInjSev(e.target.value)} style={{ padding: '7px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc', fontSize: 12 }}><option value="minor">Léger</option><option value="moderate">Modéré</option><option value="serious">Sérieux</option></select>
+            <button onClick={addInjury} style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+ Ajouter</button>
           </div>
         </div>
 
         {matchedCurr?.length > 0 && (
           <div className="card" style={{ marginBottom: 16 }}>
-            <div className="label">Today's Class</div>
+            <div className="label">Cours du jour</div>
             {matchedCurr.map(cls => (cls.curriculum_techniques || []).map((t, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' }}>
                 <CategoryBadge category={t.category} size="small" />
@@ -288,10 +486,10 @@ export default function CheckInPage() {
 
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="label">Note</div>
-          <textarea className="input" placeholder="Anything to remember?" value={note} onChange={e => setNote(e.target.value)} rows={2} style={{ resize: 'none' }} />
+          <textarea className="input" placeholder="À retenir..." value={note} onChange={e => setNote(e.target.value)} rows={2} style={{ resize: 'none' }} />
         </div>
-        <button className="btn btn-primary" onClick={() => doCheckOut(false)} disabled={busy} style={{ marginBottom: 8 }}>Save & Check Out</button>
-        <button className="btn btn-secondary" onClick={() => doCheckOut(true)} disabled={busy}>Just Check Out</button>
+        <button className="btn btn-primary" onClick={() => doCheckOut(false)} disabled={busy} style={{ marginBottom: 8 }}>Sauvegarder et partir</button>
+        <button className="btn btn-secondary" onClick={() => doCheckOut(true)} disabled={busy}>Juste partir</button>
       </div>
     );
   }
@@ -300,94 +498,142 @@ export default function CheckInPage() {
   return (
     <div className="container" style={{ paddingTop: 32, paddingBottom: 100 }}>
       <div style={{ marginBottom: 24 }}>
-        <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-        <h1 style={{ fontFamily: 'var(--font-d)', fontSize: 24, fontWeight: 400, marginTop: 4 }}>{checkin ? "You're on the mat" : `Hey ${profile?.display_name?.split(' ')[0] || 'there'}`}</h1>
+        <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>{new Date().toLocaleDateString('fr-FR', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+        <h1 style={{ fontFamily: 'var(--font-d)', fontSize: 24, fontWeight: 400, marginTop: 4 }}>
+          {checkin ? "Sur le tatami 🟢" : `Salut ${profile?.display_name?.split(' ')[0] || ''}`}
+        </h1>
       </div>
+
       {checkin ? (
         <div className="fade-in">
           <div className="card" style={{ textAlign: 'center', padding: 24, border: `1px solid ${SESSION_TYPES.find(t => t.id === checkin.session_type)?.color}40`, marginBottom: 16 }}>
-            <div style={{ fontSize: 12, color: SESSION_TYPES.find(t => t.id === checkin.session_type)?.color, textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700, marginBottom: 4 }}>{SESSION_TYPES.find(t => t.id === checkin.session_type)?.label}</div>
+            <div style={{ fontSize: 12, color: SESSION_TYPES.find(t => t.id === checkin.session_type)?.color, textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700, marginBottom: 4 }}>
+              {SESSION_TYPES.find(t => t.id === checkin.session_type)?.label}
+            </div>
             <div style={{ fontFamily: 'var(--font-d)', fontSize: 48, color: '#f0ece2', margin: '6px 0' }}>{fmtLong(elapsed)}</div>
           </div>
+
           <div className="card" style={{ marginBottom: 16, padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#ccc', textTransform: 'uppercase', letterSpacing: 1 }}>Rounds</span>
               <span style={{ color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-d)' }}>{doneRounds.length + (round ? 1 : 0)}</span>
             </div>
-            {!round && members.length > 0 && (
-              <div style={{ marginBottom: 10 }}>
-                <select value={opponent} onChange={e => setOpponent(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc', fontSize: 12 }}>
-                  <option value="">Opponent (optional)</option>
-                  {members.map(m => <option key={m.user_id} value={m.user_id}>{m.profiles?.avatar_emoji} {m.profiles?.display_name} — {m.profiles?.belt}</option>)}
-                </select>
-              </div>
+
+            {/* Opponent picker (only when no active round) */}
+            {!round && (
+              <OpponentPicker
+                members={members}
+                value={opponentData}
+                onChange={setOpponentData}
+              />
             )}
+
             {round ? (
               <>
                 <div className="card" style={{ textAlign: 'center', padding: 20, marginBottom: 12, border: '1px solid #66bb6a', background: 'rgba(102,187,106,.04)' }}>
                   <div style={{ fontSize: 10, color: '#66bb6a', textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700 }}>Round {doneRounds.length + 1}</div>
+                  {oppLabel(round) && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{oppLabel(round)}</div>}
                   <div style={{ fontFamily: 'var(--font-d)', fontSize: 40, color: '#f0ece2', margin: '8px 0' }}>{fmt(roundTime)}</div>
                 </div>
-                <button className="btn btn-danger" onClick={doEndRoundPrompt} disabled={busy}>End Round</button>
+                <button className="btn btn-danger" onClick={doEndRoundPrompt} disabled={busy}>Fin du round</button>
               </>
             ) : (
-              <button className="btn btn-secondary" onClick={doStartRound} disabled={busy} style={{ fontSize: 15, padding: '16px 24px' }}>Start Round {doneRounds.length + 1}</button>
+              <button className="btn btn-secondary" onClick={doStartRound} disabled={busy} style={{ fontSize: 15, padding: '16px 24px' }}>
+                Start Round {doneRounds.length + 1}
+              </button>
             )}
-            {doneRounds.length > 0 && <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>{doneRounds.map((r, i) => {
-              const ev = r._events || [];
-              const opp = r.opponent_id ? members.find(m => m.user_id === r.opponent_id) : null;
-              return <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'rgba(255,255,255,.02)', borderRadius: 6, fontSize: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ color: '#888' }}>R{r.round_number}</span>
-                  {opp && <span style={{ color: 'var(--text-dim)' }}>vs {opp.profiles?.display_name?.split(' ')[0]}</span>}
-                  {ev.length > 0 && <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>{ev.map(e => e.technique).join(', ')}</span>}
-                </div>
-                <span style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-d)' }}>{fmt(r.duration_seconds || 0)}</span>
-              </div>;
-            })}</div>}
+
+            {doneRounds.length > 0 && (
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {doneRounds.map((r, i) => {
+                  const ev = r._events || [];
+                  const opp = oppLabel(r);
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'rgba(255,255,255,.02)', borderRadius: 6, fontSize: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ color: '#888' }}>R{r.round_number}</span>
+                        {opp && (
+                          <span style={{ color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {r.opponent_belt && (
+                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: BELT_COLORS[r.opponent_belt] || '#888', display: 'inline-block', border: r.opponent_belt === 'white' ? '1px solid #aaa' : 'none' }} />
+                            )}
+                            {opp}
+                          </span>
+                        )}
+                        {ev.length > 0 && <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>{ev.map(e => e.technique).join(', ')}</span>}
+                      </div>
+                      <span style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-d)' }}>{fmt(r.duration_seconds || 0)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          <button className="btn btn-danger" onClick={doCheckOutPrompt} disabled={busy}>End Session</button>
+
+          <button className="btn btn-danger" onClick={doCheckOutPrompt} disabled={busy}>Terminer la session</button>
         </div>
       ) : (
         <div className="fade-in">
           <div style={{ marginBottom: 24 }}>
-            <div className="label">Session type</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>{SESSION_TYPES.map(t => (
-              <button key={t.id} onClick={() => setSelType(t.id)} style={{ padding: '22px 8px', background: selType === t.id ? `${t.color}15` : 'rgba(255,255,255,.02)', border: selType === t.id ? `2px solid ${t.color}` : '1px solid var(--border)', borderRadius: 12, cursor: 'pointer' }}>
-                <span style={{ fontSize: 15, fontWeight: 700, color: selType === t.id ? t.color : 'var(--text-dim)' }}>{t.label}</span>
-              </button>
-            ))}</div>
+            <div className="label">Type de session</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              {SESSION_TYPES.map(t => (
+                <button key={t.id} onClick={() => setSelType(t.id)} style={{ padding: '22px 8px', background: selType === t.id ? `${t.color}15` : 'rgba(255,255,255,.02)', border: selType === t.id ? `2px solid ${t.color}` : '1px solid var(--border)', borderRadius: 12, cursor: 'pointer' }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: selType === t.id ? t.color : 'var(--text-dim)' }}>{t.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
-          <button className="btn btn-primary" onClick={doCheckIn} disabled={busy} style={{ padding: '20px 24px', fontSize: 17, marginBottom: 16 }}>{busy ? '...' : 'Check In'}</button>
+
+          <button className="btn btn-primary" onClick={doCheckIn} disabled={busy} style={{ padding: '20px 24px', fontSize: 17, marginBottom: 16 }}>
+            {busy ? '...' : 'Check In'}
+          </button>
+
           <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-            <button onClick={() => setShowPast(!showPast)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>{showPast ? '✕ Cancel' : '+ Past Session'}</button>
-            <button onClick={() => setShowRecent(!showRecent)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>{showRecent ? '✕ Hide' : 'Recent'}</button>
+            <button onClick={() => setShowPast(!showPast)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>
+              {showPast ? '✕ Annuler' : '+ Session passée'}
+            </button>
+            <button onClick={() => setShowRecent(!showRecent)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>
+              {showRecent ? '✕ Masquer' : 'Récentes'}
+            </button>
           </div>
+
           {showPast && (
             <form onSubmit={addPastSession} className="card" style={{ marginBottom: 16 }}>
-              <div className="label">Log Past Session</div>
+              <div className="label">Session passée</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
                 <input className="input" type="date" value={pastDate} onChange={e => setPastDate(e.target.value)} required />
                 <input className="input" type="time" value={pastStart} onChange={e => setPastStart(e.target.value)} required />
                 <input className="input" type="time" value={pastEnd} onChange={e => setPastEnd(e.target.value)} required />
               </div>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>{SESSION_TYPES.map(t => (
-                <button key={t.id} type="button" onClick={() => setPastType(t.id)} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: pastType === t.id ? `${t.color}20` : 'rgba(255,255,255,.03)', color: pastType === t.id ? t.color : 'var(--text-dim)' }}>{t.label}</button>
-              ))}</div>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>{ENERGY.map(e => (
-                <button key={e.val} type="button" onClick={() => setPastEnergy(e.val)} style={{ flex: 1, padding: '6px', fontSize: 16, borderRadius: 8, border: pastEnergy === e.val ? '1px solid var(--accent)' : '1px solid var(--border)', background: pastEnergy === e.val ? 'rgba(155,77,202,.15)' : 'transparent', cursor: 'pointer' }}>{e.emoji}</button>
-              ))}</div>
-              <input className="input" placeholder="Note (optional)" value={pastNote} onChange={e => setPastNote(e.target.value)} style={{ marginBottom: 10 }} />
-              <button className="btn btn-primary btn-small" type="submit" disabled={busy}>Save</button>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                {SESSION_TYPES.map(t => (
+                  <button key={t.id} type="button" onClick={() => setPastType(t.id)} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: pastType === t.id ? `${t.color}20` : 'rgba(255,255,255,.03)', color: pastType === t.id ? t.color : 'var(--text-dim)' }}>{t.label}</button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                {ENERGY.map(e => (
+                  <button key={e.val} type="button" onClick={() => setPastEnergy(e.val)} style={{ flex: 1, padding: '6px', fontSize: 16, borderRadius: 8, border: pastEnergy === e.val ? '1px solid var(--accent)' : '1px solid var(--border)', background: pastEnergy === e.val ? 'rgba(155,77,202,.15)' : 'transparent', cursor: 'pointer' }}>{e.emoji}</button>
+                ))}
+              </div>
+              <input className="input" placeholder="Note (optionnel)" value={pastNote} onChange={e => setPastNote(e.target.value)} style={{ marginBottom: 10 }} />
+              <button className="btn btn-primary btn-small" type="submit" disabled={busy}>Sauvegarder</button>
             </form>
           )}
+
           {showRecent && recent.length > 0 && (
-            <div className="card">{recent.map(s => (
-              <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-                <div><span style={{ fontSize: 13, color: '#ccc' }}>{new Date(s.checked_in_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span><span style={{ fontSize: 12, color: SESSION_TYPES.find(t => t.id === s.session_type)?.color, marginLeft: 8 }}>{s.session_type}</span>{s.energy_rating && <span style={{ marginLeft: 4 }}>{ENERGY[s.energy_rating - 1]?.emoji}</span>}</div>
-                <button onClick={() => deleteSession(s.id)} style={{ background: 'none', border: 'none', color: '#ef5350', cursor: 'pointer', fontSize: 11 }}>Delete</button>
-              </div>
-            ))}</div>
+            <div className="card">
+              {recent.map(s => (
+                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                  <div>
+                    <span style={{ fontSize: 13, color: '#ccc' }}>{new Date(s.checked_in_at).toLocaleDateString('fr-FR', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                    <span style={{ fontSize: 12, color: SESSION_TYPES.find(t => t.id === s.session_type)?.color, marginLeft: 8 }}>{s.session_type}</span>
+                    {s.energy_rating && <span style={{ marginLeft: 4 }}>{ENERGY[s.energy_rating - 1]?.emoji}</span>}
+                  </div>
+                  <button onClick={() => deleteSession(s.id)} style={{ background: 'none', border: 'none', color: '#ef5350', cursor: 'pointer', fontSize: 11 }}>Suppr.</button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
