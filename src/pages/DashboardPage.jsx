@@ -148,7 +148,12 @@ export default function DashboardPage() {
       off: oppEvents[id]?.off || 0, def: oppEvents[id]?.def || 0,
       wins: oppResults[id]?.wins || 0, draws: oppResults[id]?.draws || 0, losses: oppResults[id]?.losses || 0,
       matSeconds: oppResults[id]?.matSeconds || 0,
-    })).sort((a, b) => b.rounds - a.rounds).slice(0, 8);
+    })).sort((a, b) => {
+      // sort by most recent round date
+      const lastA = RAll.filter(r => (r.opponent_id||`name:${r.opponent_name}`) === a.id).reduce((mx, r) => r.started_at > mx ? r.started_at : mx, '');
+      const lastB = RAll.filter(r => (r.opponent_id||`name:${r.opponent_name}`) === b.id).reduce((mx, r) => r.started_at > mx ? r.started_at : mx, '');
+      return lastB.localeCompare(lastA);
+    }).slice(0, 5);
 
     // Techniques drilled grouped by day
     const techByDay = {};
@@ -288,16 +293,15 @@ export default function DashboardPage() {
           {d.opponents.length > 0 && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div className="section-title">Sparring Partners</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 {d.opponents.map((o, i) => {
-                  const BELT_DOT = { white: '#e0e0d0', blue: '#1a5fb4', purple: '#7b2d8e', brown: '#8b5e3c', black: '#222' };
+                  const BELT_DOT = { white: '#e0e0d0', blue: '#1a5fb4', purple: '#7b2d8e', brown: '#8b5e3c', black: '#444' };
                   const matMin = Math.round((o.matSeconds || 0) / 60);
-                  const hasResults = o.wins + o.draws + o.losses > 0;
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: i < d.opponents.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none' }}>
                       <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <Av p={{ avatar_url: o.avatar_url, avatar_emoji: o.emoji }} size={36} />
-                        <div style={{ position: 'absolute', bottom: -2, right: -2, width: 12, height: 12, borderRadius: '50%', background: BELT_DOT[o.belt] || '#888', border: '2px solid #111' }} />
+                        <Av p={{ avatar_url: o.avatar_url, avatar_emoji: o.emoji }} size={38} />
+                        <div style={{ position: 'absolute', bottom: -1, right: -1, width: 13, height: 13, borderRadius: '50%', background: BELT_DOT[o.belt] || '#888', border: '2px solid #1a1a1a' }} />
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#ddd' }}>{o.name?.split(' ')[0]}</div>
@@ -305,24 +309,17 @@ export default function DashboardPage() {
                           {o.rounds} round{o.rounds !== 1 ? 's' : ''}{matMin > 0 ? ` · ${matMin}min` : ''}
                         </div>
                       </div>
-                      {hasResults && (
-                        <div style={{ display: 'flex', gap: 6, fontSize: 12, fontFamily: 'var(--font-d)' }}>
-                          {o.wins > 0 && <span style={{ color: '#66bb6a' }}>{o.wins}V</span>}
-                          {o.draws > 0 && <span style={{ color: '#ffb74d' }}>{o.draws}N</span>}
-                          {o.losses > 0 && <span style={{ color: '#ef5350' }}>{o.losses}D</span>}
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', gap: 8, fontSize: 12, fontFamily: 'var(--font-d)' }}>
+                        <span style={{ color: '#66bb6a' }}>{o.wins}V</span>
+                        <span style={{ color: '#ffb74d' }}>{o.draws}N</span>
+                        <span style={{ color: '#ef5350' }}>{o.losses}D</span>
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
           )}
-          <div className="card" style={{ marginBottom: 14 }}>
-            <div className="section-title">Game Flow</div>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Thicker = more used. Tap a path for details. Submissions map from the position you picked during logging.</p>
-            <TechTree events={d.allEventsData || []} />
-          </div>
           {d.topOffense.length > 0 && (
             <div className="card">
               <div className="section-title" style={{ color: '#66bb6a' }}>Best Moves</div>
@@ -362,3 +359,9 @@ export default function DashboardPage() {
     </div>
   );
 }
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="section-title">Game Flow</div>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Thicker = more used. Tap a path for details. Submissions map from the position you picked during logging.</p>
+            <TechTree events={d.allEventsData || []} />
+          </div>
+
