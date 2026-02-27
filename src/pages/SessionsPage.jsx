@@ -22,141 +22,44 @@ const RESULTS = [
   { id: 'loss', label: 'Loss', color: '#ef5350' },
 ];
 const CATEGORIES = [
-  { id: 'takedown', label: 'Takedown', techniques: ['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Hip Throw','Guard Pull'] },
-  { id: 'submission', label: 'Submission', techniques: ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Bow & Arrow','Heel Hook','Americana','Loop Choke','Cross Collar'] },
-  { id: 'sweep', label: 'Sweep', techniques: ['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Elevator Sweep','Waiter Sweep'] },
-  { id: 'pass', label: 'Pass', techniques: ['Knee Slice','Toreando','Over-Under','Stack Pass','Leg Drag','Smash Pass','Backstep'] },
-  { id: 'escape', label: 'Escape', techniques: ['Bridge & Roll','Hip Escape','Frame & Reguard','Granby Roll','Back Escape'] },
+  { id: 'takedown', label: 'Takedown', askPosition: false, techniques: ['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Hip Throw','Guard Pull'] },
+  { id: 'submission', label: 'Submission', askPosition: true, techniques: ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Bow & Arrow','Heel Hook','Americana','Loop Choke','Cross Collar','Toe Hold','Baseball Choke','Gogoplata','Calf Slicer'] },
+  { id: 'sweep', label: 'Sweep', askPosition: true, techniques: ['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Elevator Sweep','Waiter Sweep','Tripod Sweep','Sickle Sweep'] },
 ];
-const CAT_COLORS = { takedown: '#ffd54f', submission: '#e57373', sweep: '#64b5f6', pass: '#ffb74d', escape: '#81c784' };
-
-function fmt(sec) {
-  if (!sec) return '0:00';
-  const m = Math.floor(sec / 60), s = sec % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-function fmtDuration(sec) {
-  if (!sec) return '—';
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-function parseDuration(str) {
-  // accepts "5:30" or "5" (minutes)
-  if (!str) return 0;
-  const parts = str.split(':');
-  if (parts.length === 2) return parseInt(parts[0]) * 60 + parseInt(parts[1] || 0);
-  return parseInt(str) * 60;
-}
-
-function BeltDot({ belt, size = 10 }) {
-  return (
-    <span style={{
-      display: 'inline-block', width: size, height: size, borderRadius: '50%',
-      background: BELT_COLORS[belt] || '#888',
-      border: belt === 'white' ? '1px solid #999' : 'none', flexShrink: 0,
-    }} />
-  );
-}
-
-function SessionTypeChip({ type }) {
-  const t = SESSION_TYPES.find(x => x.id === type);
-  if (!t) return null;
-  return (
-    <span style={{
-      padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-      background: `${t.color}18`, color: t.color,
-    }}>{t.label}</span>
-  );
-}
-
-function ResultChip({ result }) {
-  const r = RESULTS.find(x => x.id === result);
-  if (!r) return null;
-  return (
-    <span style={{
-      padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-      background: `${r.color}18`, color: r.color,
-    }}>{r.label.toUpperCase()}</span>
-  );
-}
-
-// ── Opponent picker (inline, simplified) ──────────────────────────────
-function InlineOpponentPicker({ members, oppName, oppBelt, oppId, onChange }) {
-  const [mode, setMode] = useState(oppId ? 'member' : oppName ? 'guest' : 'none');
-
-  function handleMode(m) {
-    setMode(m);
-    onChange({ name: '', belt: 'white', id: null });
-  }
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
-        {[{ id: 'none', l: 'Solo' }, { id: 'member', l: 'Membre' }, { id: 'guest', l: 'Invité' }].map(o => (
-          <button key={o.id} type="button" onClick={() => handleMode(o.id)} style={{
-            flex: 1, padding: '6px', fontSize: 11, fontWeight: 600, borderRadius: 8, border: 'none', cursor: 'pointer',
-            background: mode === o.id ? 'var(--accent)' : 'rgba(255,255,255,.04)',
-            color: mode === o.id ? '#fff' : 'var(--text-dim)',
-          }}>{o.l}</button>
-        ))}
-      </div>
-      {mode === 'member' && (
-        <select
-          value={oppId || ''}
-          onChange={e => {
-            const m = members.find(x => x.user_id === e.target.value);
-            onChange({ name: m?.display_name || '', belt: m?.belt || 'white', id: e.target.value });
-          }}
-          style={{ width: '100%', padding: '8px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc', fontSize: 13 }}
-        >
-          <option value="">Choisir un partenaire...</option>
-          {members.map(m => (
-            <option key={m.user_id} value={m.user_id}>{m.display_name} ({m.belt || 'white'})</option>
-          ))}
-        </select>
-      )}
-      {mode === 'guest' && (
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input
-            className="input"
-            placeholder="Nom de l'adversaire"
-            value={oppName || ''}
-            onChange={e => onChange({ name: e.target.value, belt: oppBelt || 'white', id: null })}
-            style={{ flex: 1 }}
-          />
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-            {BELTS.map(b => (
-              <button key={b} type="button" onClick={() => onChange({ name: oppName || '', belt: b, id: null })} title={b}
-                style={{ width: 18, height: 18, borderRadius: '50%', border: oppBelt === b ? '2px solid #fff' : '2px solid transparent', background: BELT_COLORS[b], cursor: 'pointer', padding: 0, boxShadow: b === 'white' ? 'inset 0 0 0 1px #aaa' : 'none' }} />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-const POSITIONS = ['Guard', 'Half Guard', 'Mount', 'Back', 'Side Control', 'Turtle', 'Standing'];
+const CAT_COLORS = { takedown: '#ffd54f', submission: '#e57373', sweep: '#64b5f6' };
+const POSITIONS = ['Mount','Back','Closed Guard','Open Guard','Half Guard','Side Control','Standing','Turtle','Leg Entangle'];
 
 // ── Round event editor ─────────────────────────────────────────────────
 function EventEditor({ events, onChange }) {
   const [direction, setDirection] = useState('offensive');
   const [cat, setCat] = useState('submission');
+  const [pendingTech, setPendingTech] = useState(null); // { catId, technique } waiting for position
   const [customTech, setCustomTech] = useState('');
 
-  const needsPosition = cat === 'submission' || cat === 'sweep';
-
-  function addTech(tech, pos) {
-    onChange([...events, { event_type: cat, direction, technique: tech, position: pos || null }]);
+  function tapTech(catObj, tech) {
+    if (catObj.askPosition) {
+      setPendingTech({ catId: catObj.id, technique: tech });
+    } else {
+      onChange([...events, { event_type: catObj.id, direction, technique: tech, position: null }]);
+    }
   }
-  function removeEvent(i) {
-    onChange(events.filter((_, j) => j !== i));
+  function confirmPosition(pos) {
+    if (!pendingTech) return;
+    onChange([...events, { event_type: pendingTech.catId, direction, technique: pendingTech.technique, position: pos }]);
+    setPendingTech(null);
   }
-  function addCustom(pos) {
+  function addCustom() {
     if (!customTech.trim()) return;
-    onChange([...events, { event_type: cat, direction, technique: customTech.trim(), position: pos || null }]);
-    setCustomTech('');
+    const catObj = CATEGORIES.find(c => c.id === cat);
+    if (catObj?.askPosition) {
+      setPendingTech({ catId: cat, technique: customTech.trim() });
+      setCustomTech('');
+    } else {
+      onChange([...events, { event_type: cat, direction, technique: customTech.trim(), position: null }]);
+      setCustomTech('');
+    }
   }
+  function removeEvent(i) { onChange(events.filter((_, j) => j !== i)); }
 
   return (
     <div>
@@ -174,6 +77,7 @@ function EventEditor({ events, onChange }) {
           ))}
         </div>
       )}
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', marginBottom: 8 }}>
         {[{ d: 'offensive', l: '✅ Moi' }, { d: 'defensive', l: '😤 Eux' }].map(x => (
           <button key={x.d} type="button" onClick={() => setDirection(x.d)} style={{
@@ -183,47 +87,34 @@ function EventEditor({ events, onChange }) {
           }}>{x.l}</button>
         ))}
       </div>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
-        {CATEGORIES.map(c => (
-          <button key={c.id} type="button" onClick={() => setCat(c.id)} style={{
-            padding: '4px 8px', fontSize: 11, borderRadius: 6, border: 'none', cursor: 'pointer',
-            background: cat === c.id ? `${CAT_COLORS[c.id]}22` : 'rgba(255,255,255,.04)',
-            color: cat === c.id ? CAT_COLORS[c.id] : 'var(--text-dim)',
-          }}>{c.label}</button>
-        ))}
-      </div>
 
-      {needsPosition ? (
-        <div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Technique → puis choisis la position :</div>
-          {CATEGORIES.find(c => c.id === cat)?.techniques.map(t => (
-            <div key={t} style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 11, color: '#ccc', marginBottom: 4, fontWeight: 500 }}>{t}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                {POSITIONS.map(pos => (
-                  <button key={pos} type="button" onClick={() => addTech(t, pos)} style={{
-                    padding: '3px 8px', fontSize: 10, borderRadius: 10, cursor: 'pointer',
-                    background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#aaa',
-                  }}>{pos}</button>
-                ))}
-              </div>
-            </div>
-          ))}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-            <input className="input" placeholder="Autre technique..." value={customTech} onChange={e => setCustomTech(e.target.value)}
-              style={{ flex: 1, minWidth: 120, padding: '6px 10px', fontSize: 12 }} />
-            {POSITIONS.map(pos => (
-              <button key={pos} type="button" onClick={() => addCustom(pos)} style={{
-                padding: '6px 8px', fontSize: 10, borderRadius: 6, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#aaa', cursor: 'pointer',
-              }}>{pos}</button>
+      {pendingTech ? (
+        <div className="card" style={{ marginBottom: 10, border: '1px solid var(--accent)', padding: 12 }}>
+          <div style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 8 }}>{pendingTech.technique} — depuis quelle position ?</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {POSITIONS.map(p => (
+              <button key={p} type="button" onClick={() => confirmPosition(p)} style={{
+                padding: '7px 14px', fontSize: 12, borderRadius: 16, cursor: 'pointer',
+                background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc',
+              }}>{p}</button>
             ))}
           </div>
+          <button type="button" onClick={() => setPendingTech(null)} style={{ marginTop: 8, background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer' }}>Annuler</button>
         </div>
       ) : (
-        <div>
+        <>
+          <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
+            {CATEGORIES.map(c => (
+              <button key={c.id} type="button" onClick={() => setCat(c.id)} style={{
+                padding: '4px 8px', fontSize: 11, borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: cat === c.id ? `${CAT_COLORS[c.id]}22` : 'rgba(255,255,255,.04)',
+                color: cat === c.id ? CAT_COLORS[c.id] : 'var(--text-dim)',
+              }}>{c.label}</button>
+            ))}
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
             {CATEGORIES.find(c => c.id === cat)?.techniques.map(t => (
-              <button key={t} type="button" onClick={() => addTech(t, null)} style={{
+              <button key={t} type="button" onClick={() => tapTech(CATEGORIES.find(c => c.id === cat), t)} style={{
                 padding: '5px 10px', fontSize: 11, borderRadius: 14, cursor: 'pointer',
                 background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: '#bbb',
               }}>{t}</button>
@@ -231,11 +122,11 @@ function EventEditor({ events, onChange }) {
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <input className="input" placeholder="Autre technique..." value={customTech} onChange={e => setCustomTech(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(null); } }}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
               style={{ flex: 1, padding: '7px 10px', fontSize: 12 }} />
-            <button type="button" onClick={() => addCustom(null)} style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+</button>
+            <button type="button" onClick={addCustom} style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+</button>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

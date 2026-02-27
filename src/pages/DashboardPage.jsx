@@ -132,7 +132,23 @@ export default function DashboardPage() {
       const key = rd?.opponent_id || (rd?.opponent_name ? `name:${rd.opponent_name}` : null);
       if (key) { oppEvents[key] = oppEvents[key] || { off: 0, def: 0 }; oppEvents[key][e.direction === 'offensive' ? 'off' : 'def']++; }
     });
-    const opponents = Object.entries(oppMap).map(([id, v]) => ({ id, ...v, off: oppEvents[id]?.off || 0, def: oppEvents[id]?.def || 0 })).sort((a, b) => b.rounds - a.rounds).slice(0, 8);
+    // W/D/L per opponent
+    const oppResults = {};
+    RAll.forEach(r => {
+      const key = r.opponent_id || (r.opponent_name ? `name:${r.opponent_name}` : null);
+      if (!key || !r.result) return;
+      if (!oppResults[key]) oppResults[key] = { wins: 0, draws: 0, losses: 0, matSeconds: 0 };
+      if (r.result === 'win') oppResults[key].wins++;
+      else if (r.result === 'draw') oppResults[key].draws++;
+      else if (r.result === 'loss') oppResults[key].losses++;
+      oppResults[key].matSeconds += r.duration_seconds || 0;
+    });
+    const opponents = Object.entries(oppMap).map(([id, v]) => ({
+      id, ...v,
+      off: oppEvents[id]?.off || 0, def: oppEvents[id]?.def || 0,
+      wins: oppResults[id]?.wins || 0, draws: oppResults[id]?.draws || 0, losses: oppResults[id]?.losses || 0,
+      matSeconds: oppResults[id]?.matSeconds || 0,
+    })).sort((a, b) => b.rounds - a.rounds).slice(0, 8);
 
     // Techniques drilled grouped by day
     const techByDay = {};
@@ -272,15 +288,33 @@ export default function DashboardPage() {
           {d.opponents.length > 0 && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div className="section-title">Sparring Partners</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
-                {d.opponents.map((o, i) => (
-                  <div key={i} className="card" style={{ padding: 12, textAlign: 'center' }}>
-                    <Av p={{ avatar_url: o.avatar_url, avatar_emoji: o.emoji }} size={24} />
-                    <div style={{ fontSize: 12, color: '#ddd', margin: '4px 0' }}>{o.name?.split(' ')[0]}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>{o.belt} · {o.rounds} rds</div>
-                    <div style={{ fontSize: 11 }}><span style={{ color: '#66bb6a' }}>+{o.off}</span> <span style={{ color: '#ef5350' }}>-{o.def}</span></div>
-                  </div>
-                ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {d.opponents.map((o, i) => {
+                  const BELT_DOT = { white: '#e0e0d0', blue: '#1a5fb4', purple: '#7b2d8e', brown: '#8b5e3c', black: '#222' };
+                  const matMin = Math.round((o.matSeconds || 0) / 60);
+                  const hasResults = o.wins + o.draws + o.losses > 0;
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <Av p={{ avatar_url: o.avatar_url, avatar_emoji: o.emoji }} size={36} />
+                        <div style={{ position: 'absolute', bottom: -2, right: -2, width: 12, height: 12, borderRadius: '50%', background: BELT_DOT[o.belt] || '#888', border: '2px solid #111' }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#ddd' }}>{o.name?.split(' ')[0]}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                          {o.rounds} round{o.rounds !== 1 ? 's' : ''}{matMin > 0 ? ` · ${matMin}min` : ''}
+                        </div>
+                      </div>
+                      {hasResults && (
+                        <div style={{ display: 'flex', gap: 6, fontSize: 12, fontFamily: 'var(--font-d)' }}>
+                          {o.wins > 0 && <span style={{ color: '#66bb6a' }}>{o.wins}V</span>}
+                          {o.draws > 0 && <span style={{ color: '#ffb74d' }}>{o.draws}N</span>}
+                          {o.losses > 0 && <span style={{ color: '#ef5350' }}>{o.losses}D</span>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
