@@ -222,7 +222,10 @@ function RoundEditor({ round, members, onSave, onDelete, onClose }) {
   async function handleSave() {
     setSaving(true);
     const duration_seconds = parseDuration(durationStr);
-    const updates = { duration_seconds, result: result || null };
+    // ended_at = started_at + duration (duration_seconds is a generated column)
+    const startedAt = new Date(round.started_at || round.ended_at || new Date());
+    const endedAt = new Date(startedAt.getTime() + (duration_seconds || 0) * 1000);
+    const updates = { result: result || null, started_at: startedAt.toISOString(), ended_at: endedAt.toISOString() };
     if (oppId && !oppId.startsWith('contact_')) {
       updates.opponent_id = oppId;
       updates.opponent_name = oppName || null;
@@ -394,15 +397,16 @@ function AddRoundForm({ session, members, onSave, onClose }) {
     setSaveError('');
     try {
       const duration_seconds = parseDuration(durationStr);
+      const startedAt = new Date(session.checked_in_at || new Date());
+      const endedAt = new Date(startedAt.getTime() + (duration_seconds || 0) * 1000);
       const roundData = {
         checkin_id: session.id,
         user_id: user.id,
         gym_id: gym.id,
         round_number: roundCount + 1,
-        duration_seconds,
         result: result || null,
-        started_at: session.checked_in_at || new Date().toISOString(),
-        ended_at: session.checked_out_at || new Date().toISOString(),
+        started_at: startedAt.toISOString(),
+        ended_at: endedAt.toISOString(),
       };
       if (oppId && !String(oppId).startsWith('contact_')) {
         roundData.opponent_id = oppId;

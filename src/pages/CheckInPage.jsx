@@ -476,15 +476,16 @@ export default function CheckInPage() {
     const { durationStr, result, oppName, oppBelt, oppId } = roundInfo;
     const parseSec = (s) => { const p = s.split(':'); if (p.length === 2) return parseInt(p[0])*60+parseInt(p[1]||0); return parseInt(s||0)*60; };
     const duration_seconds = parseSec(durationStr);
+    const startedAt = new Date(pastCreatedSession.checked_in_at);
+    const endedAt = new Date(startedAt.getTime() + (duration_seconds || 0) * 1000);
     const roundData = {
       checkin_id: pastCreatedSession.id,
       user_id: user.id,
       gym_id: gym.id,
       round_number: pastRounds.length + 1,
-      duration_seconds,
       result: result || null,
-      started_at: pastCreatedSession.checked_in_at,
-      ended_at: pastCreatedSession.checked_out_at,
+      started_at: startedAt.toISOString(),
+      ended_at: endedAt.toISOString(),
     };
     if (oppId && !String(oppId).startsWith('contact_')) {
       roundData.opponent_id = oppId;
