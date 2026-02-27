@@ -19,17 +19,15 @@ const POSITIONS = ['Mount','Back','Closed Guard','Open Guard','Half Guard','Side
 const BELTS = ['white','blue','purple','brown','black'];
 const BELT_COLORS = { white: '#e8e8e0', blue: '#1a5fb4', purple: '#7b2d8e', brown: '#8b5e3c', black: '#444' };
 const CATEGORIES = [
-  { id: 'takedown', label: 'Takedowns', techniques: ['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Inside Trip','Hip Throw','Shoulder Throw','Foot Sweep','Drop Throw','Guard Pull'] },
-  { id: 'submission', label: 'Submissions', askPosition: true, techniques: ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock'] },
-  { id: 'sweep', label: 'Sweeps', techniques: ['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Pendulum','Tripod Sweep','Sickle Sweep','Elevator Sweep','Waiter Sweep'] },
-  { id: 'pass', label: 'Guard Passes', techniques: ['Knee Slice','Toreando','Over-Under','Stack Pass','Leg Drag','Long Step','Smash Pass','X-Pass','Backstep','Body Lock Pass'] },
-  { id: 'escape', label: 'Escapes', techniques: ['Bridge & Roll','Hip Escape','Frame & Reguard','Granby Roll','Trap & Roll','Back Escape'] },
+  { id: 'takedown', label: 'Takedowns', color: '#ffd54f', techniques: ['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Inside Trip','Hip Throw','Shoulder Throw','Foot Sweep','Drop Throw','Guard Pull'] },
+  { id: 'submission', label: 'Submissions', color: '#e57373', askPosition: true, techniques: ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock'] },
+  { id: 'sweep', label: 'Sweeps', color: '#64b5f6', askPosition: true, techniques: ['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Pendulum','Tripod Sweep','Sickle Sweep','Elevator Sweep','Waiter Sweep'] },
 ];
 const BODY_PARTS = ['Neck','Shoulder','Elbow','Wrist/Hand','Ribs','Lower Back','Hip','Knee','Ankle/Foot','Fingers/Toes'];
 const INJURY_TYPES = ['Strain','Sprain','Bruise','Pop/Crack','Soreness','Cut','Burn','Tweak'];
 const DRILL_CATS = [
   { id: 'guard', label: '🛡️ Guard' },{ id: 'passing', label: '🚀 Passing' },{ id: 'takedown', label: '🤼 Takedown' },
-  { id: 'submission', label: '🔒 Submission' },{ id: 'escape', label: '🏃 Escape' },{ id: 'sweep', label: '🔄 Sweep' },
+  { id: 'submission', label: '🔒 Submission' },{ id: 'sweep', label: '🔄 Sweep' },
 ];
 
 function fmt(sec) { const m = Math.floor(sec/60), s = sec%60; return `${m}:${String(s).padStart(2,'0')}`; }
@@ -184,29 +182,25 @@ function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRo
   const [events, setEvents] = useState([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
-  const [evDirection, setEvDirection] = useState('offensive');
-  const [evCat, setEvCat] = useState('submission');
-  const [evCustom, setEvCustom] = useState('');
+  const [direction, setDirection] = useState('offensive');
+  const [pendingSub, setPendingSub] = useState(null);
+  const [customTech, setCustomTech] = useState('');
+  const [customCat, setCustomCat] = useState('submission');
 
   const sessionDate = new Date(session.checked_in_at).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
 
-  const POSITIONS = ['Guard', 'Half Guard', 'Mount', 'Back', 'Side Control', 'Turtle', 'Standing'];
-  const EV_CATEGORIES = [
-    { id:'submission', label:'Soumission', techniques:['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Heel Hook','Americana','Bow & Arrow','Loop Choke','Cross Collar'] },
-    { id:'sweep', label:'Sweep', techniques:['Scissor','Hip Bump','Flower','Berimbolo','Butterfly','Tripod','Sickle'] },
-    { id:'pass', label:'Passage', techniques:['Knee Slice','Toreando','Over-Under','Stack','Leg Drag','Smash Pass'] },
-    { id:'takedown', label:'Takedown', techniques:['Single Leg','Double Leg','Arm Drag','Snap Down','Hip Throw'] },
-    { id:'escape', label:'Escape', techniques:['Bridge & Roll','Hip Escape','Frame & Reguard','Granby Roll'] },
-  ];
-  const needsPosition = (evCat === 'submission' || evCat === 'sweep');
-
-  function addEvent(tech, pos) {
-    setEvents(prev => [...prev, { event_type: evCat, direction: evDirection, technique: tech, position: pos || null }]);
+  function tapTechnique(cat, tech) {
+    if (cat.askPosition) { setPendingSub({ catId: cat.id, technique: tech }); return; }
+    setEvents(prev => [...prev, { event_type: cat.id, direction, technique: tech, position: null }]);
   }
-  function addCustomEvent(pos) {
-    if (!evCustom.trim()) return;
-    setEvents(prev => [...prev, { event_type: evCat, direction: evDirection, technique: evCustom.trim(), position: pos || null }]);
-    setEvCustom('');
+  function confirmPos(pos) {
+    setEvents(prev => [...prev, { event_type: pendingSub.catId, direction, technique: pendingSub.technique, position: pos }]);
+    setPendingSub(null);
+  }
+  function addCustom() {
+    if (!customTech.trim()) return;
+    setEvents(prev => [...prev, { event_type: customCat, direction, technique: customTech.trim(), position: null }]);
+    setCustomTech('');
   }
 
   async function handleAdd() {
@@ -221,7 +215,7 @@ function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRo
     const error = await onAddRound({ durationStr, result, oppName, oppBelt: oppBeltVal, oppId: oppIdVal, events });
     if (error) setErr(error.message || 'Erreur');
     setSaving(false);
-    if (!error) { setDurationStr('5:00'); setResult(null); setOppMode('solo'); setOppId(''); setGuestName(''); setEvents([]); }
+    if (!error) { setDurationStr('5:00'); setResult(null); setOppMode('solo'); setOppId(''); setGuestName(''); setEvents([]); setPendingSub(null); setDirection('offensive'); }
   }
 
   return (
@@ -237,9 +231,7 @@ function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRo
       {rounds.length > 0 && (
         <div style={{ marginBottom:12 }}>
           {rounds.map((r, i) => (
-            <div key={i} style={{ fontSize:12, color:'#aaa', padding:'4px 0', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
-              {r._label}
-            </div>
+            <div key={i} style={{ fontSize:12, color:'#aaa', padding:'4px 0', borderBottom:'1px solid rgba(255,255,255,.04)' }}>{r._label}</div>
           ))}
         </div>
       )}
@@ -250,6 +242,7 @@ function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRo
         </button>
       ) : (
         <div style={{ paddingTop:12, borderTop:'1px solid rgba(255,255,255,.06)' }}>
+          {/* Duration + Result */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:10 }}>
             <div>
               <div className="label">Durée (min:sec)</div>
@@ -264,6 +257,8 @@ function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRo
               </div>
             </div>
           </div>
+
+          {/* Opponent */}
           <div className="label">Adversaire</div>
           <div style={{ display:'flex', gap:4, marginBottom:8 }}>
             {['solo','member','guest'].map(m => (
@@ -288,62 +283,60 @@ function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRo
               </div>
             </div>
           )}
-          {/* Events / techniques */}
+
+          {/* Techniques & Events — same as CheckIn live round */}
           <div style={{ marginBottom:10 }}>
-            <div className="label" style={{ marginBottom:6 }}>Techniques & Événements</div>
+            <div className="label" style={{ marginBottom:8 }}>Techniques & Événements</div>
+
+            {/* I did / Done to me */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:2, borderRadius:10, overflow:'hidden', marginBottom:12, border:'1px solid var(--border)' }}>
+              {[{d:'offensive',l:'✅ I did',c:'#66bb6a'},{d:'defensive',l:'😤 Done to me',c:'#ef5350'}].map(x => (
+                <button key={x.d} type="button" onClick={() => setDirection(x.d)} style={{ padding:'11px 0', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', background: direction===x.d ? `${x.c}18` : 'transparent', color: direction===x.d ? x.c : 'var(--text-muted)' }}>{x.l}</button>
+              ))}
+            </div>
+
+            {/* Position picker */}
+            {pendingSub && (
+              <div style={{ marginBottom:12, padding:12, background:'rgba(123,45,142,.1)', borderRadius:10, border:'1px solid var(--accent)' }}>
+                <div style={{ fontSize:12, color:'var(--accent)', marginBottom:8, fontWeight:600 }}>{pendingSub.technique} — from which position?</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:6 }}>
+                  {POSITIONS.map(p => <button key={p} type="button" onClick={() => confirmPos(p)} style={{ padding:'7px 14px', fontSize:12, borderRadius:16, cursor:'pointer', background:'rgba(255,255,255,.04)', border:'1px solid var(--border)', color:'#ccc' }}>{p}</button>)}
+                </div>
+                <button type="button" onClick={() => { setEvents(prev => [...prev, { event_type: pendingSub.catId, direction, technique: pendingSub.technique, position: null }]); setPendingSub(null); }} style={{ background:'none', border:'none', color:'var(--text-muted)', fontSize:11, cursor:'pointer' }}>Skip position</button>
+              </div>
+            )}
+
+            {/* Logged events chips */}
             {events.length > 0 && (
-              <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:8 }}>
+              <div style={{ marginBottom:12, display:'flex', flexWrap:'wrap', gap:5 }}>
                 {events.map((e,i) => (
-                  <span key={i} onClick={() => setEvents(ev => ev.filter((_,j)=>j!==i))} style={{ display:'inline-flex', alignItems:'center', gap:3, padding:'3px 9px', borderRadius:14, fontSize:11, cursor:'pointer', background: e.direction==='offensive'?'rgba(102,187,106,.12)':'rgba(239,83,80,.12)', color: e.direction==='offensive'?'#66bb6a':'#ef5350' }}>
+                  <span key={i} onClick={() => setEvents(ev => ev.filter((_,j)=>j!==i))} style={{ display:'inline-flex', alignItems:'center', gap:3, padding:'4px 10px', borderRadius:16, fontSize:11, cursor:'pointer', fontWeight:500, background: e.direction==='offensive'?'rgba(102,187,106,.12)':'rgba(239,83,80,.12)', color: e.direction==='offensive'?'#66bb6a':'#ef5350' }}>
                     {e.direction==='offensive'?'✅':'😤'} {e.technique}{e.position?` (${e.position})`:''} ×
                   </span>
                 ))}
               </div>
             )}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:2, borderRadius:8, overflow:'hidden', border:'1px solid var(--border)', marginBottom:8 }}>
-              {[{d:'offensive',l:'✅ Moi'},{d:'defensive',l:'😤 Eux'}].map(x => (
-                <button key={x.d} type="button" onClick={() => setEvDirection(x.d)} style={{ padding:'7px', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', background: evDirection===x.d?(x.d==='offensive'?'rgba(102,187,106,.15)':'rgba(239,83,80,.15)'):'transparent', color: evDirection===x.d?(x.d==='offensive'?'#66bb6a':'#ef5350'):'var(--text-muted)' }}>{x.l}</button>
-              ))}
-            </div>
-            <div style={{ display:'flex', gap:4, marginBottom:8, flexWrap:'wrap' }}>
-              {EV_CATEGORIES.map(c => (
-                <button key={c.id} type="button" onClick={() => setEvCat(c.id)} style={{ padding:'4px 8px', fontSize:11, borderRadius:6, border:'none', cursor:'pointer', background: evCat===c.id?'rgba(155,77,202,.2)':'rgba(255,255,255,.04)', color: evCat===c.id?'var(--accent)':'var(--text-dim)' }}>{c.label}</button>
-              ))}
-            </div>
-            {needsPosition ? (
-              <div>
-                <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:6 }}>Choisis la technique, puis la position :</div>
-                {EV_CATEGORIES.find(c=>c.id===evCat)?.techniques.map(t => (
-                  <div key={t} style={{ marginBottom:6 }}>
-                    <div style={{ fontSize:11, color:'#bbb', marginBottom:3 }}>{t}</div>
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
-                      {POSITIONS.map(pos => (
-                        <button key={pos} type="button" onClick={() => addEvent(t, pos)} style={{ padding:'3px 8px', fontSize:10, borderRadius:10, cursor:'pointer', background:'rgba(255,255,255,.04)', border:'1px solid var(--border)', color:'#aaa' }}>{pos}</button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                <div style={{ display:'flex', gap:6, marginTop:6 }}>
-                  <input className="input" placeholder="Autre technique..." value={evCustom} onChange={e=>setEvCustom(e.target.value)} style={{ flex:1, padding:'6px 10px', fontSize:12 }} />
-                  {POSITIONS.map(pos => (
-                    <button key={pos} type="button" onClick={() => addCustomEvent(pos)} style={{ padding:'6px 8px', fontSize:10, borderRadius:6, background:'rgba(255,255,255,.04)', border:'1px solid var(--border)', color:'#aaa', cursor:'pointer' }}>{pos}</button>
-                  ))}
+
+            {/* Category sections */}
+            {CATEGORIES.map(cat => (
+              <div key={cat.id} style={{ marginBottom:12 }}>
+                <div style={{ fontSize:11, color:cat.color, textTransform:'uppercase', letterSpacing:1, fontWeight:700, marginBottom:5 }}>{cat.label}</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
+                  {cat.techniques.map(t => <button key={t} type="button" onClick={() => tapTechnique(cat, t)} style={{ padding:'6px 12px', fontSize:12, borderRadius:16, cursor:'pointer', background:'rgba(255,255,255,.03)', border:'1px solid var(--border)', color:'#bbb' }}>{t}</button>)}
                 </div>
               </div>
-            ) : (
-              <div>
-                <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:6 }}>
-                  {EV_CATEGORIES.find(c=>c.id===evCat)?.techniques.map(t => (
-                    <button key={t} type="button" onClick={() => addEvent(t, null)} style={{ padding:'5px 10px', fontSize:11, borderRadius:14, cursor:'pointer', background:'rgba(255,255,255,.03)', border:'1px solid var(--border)', color:'#bbb' }}>{t}</button>
-                  ))}
-                </div>
-                <div style={{ display:'flex', gap:6 }}>
-                  <input className="input" placeholder="Autre technique..." value={evCustom} onChange={e=>setEvCustom(e.target.value)} style={{ flex:1, padding:'6px 10px', fontSize:12 }} />
-                  <button type="button" onClick={() => addCustomEvent(null)} style={{ padding:'6px 10px', borderRadius:8, background:'rgba(255,255,255,.04)', border:'1px solid var(--border)', color:'var(--text-dim)', fontSize:12, cursor:'pointer' }}>+</button>
-                </div>
-              </div>
-            )}
+            ))}
+
+            {/* Custom */}
+            <div style={{ display:'flex', gap:6 }}>
+              <select value={customCat} onChange={e => setCustomCat(e.target.value)} style={{ padding:'7px 8px', borderRadius:8, background:'rgba(255,255,255,.04)', border:'1px solid var(--border)', color:'var(--text-dim)', fontSize:11 }}>
+                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+              <input className="input" placeholder="Other..." value={customTech} onChange={e => setCustomTech(e.target.value)} onKeyDown={e => { if (e.key==='Enter') { e.preventDefault(); addCustom(); } }} style={{ flex:1, padding:'7px 10px', fontSize:12 }} />
+              <button type="button" onClick={addCustom} style={{ padding:'7px 12px', borderRadius:8, background:'rgba(255,255,255,.04)', border:'1px solid var(--border)', color:'var(--text-dim)', fontSize:12, cursor:'pointer' }}>+</button>
+            </div>
           </div>
+
           {err && <div style={{ color:'#ef5350', fontSize:12, marginBottom:8 }}>⚠️ {err}</div>}
           <div style={{ display:'flex', gap:8 }}>
             <button className="btn btn-primary btn-small" onClick={handleAdd} disabled={saving} style={{ flex:2 }}>{saving ? '...' : 'Sauvegarder ce round'}</button>
@@ -640,7 +633,7 @@ export default function CheckInPage() {
 
         {CATEGORIES.map(cat => (
           <div key={cat.id} style={{ marginBottom:12 }}>
-            <div style={{ fontSize:11, color:CAT_STYLE[cat.id]?.color||'var(--text-dim)', textTransform:'uppercase', letterSpacing:1, fontWeight:700, marginBottom:5 }}>{cat.label}</div>
+            <div style={{ fontSize:11, color:cat.color||'var(--text-dim)', textTransform:'uppercase', letterSpacing:1, fontWeight:700, marginBottom:5 }}>{cat.label}</div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
               {cat.techniques.map(t => <button key={t} onClick={() => tapTechnique(cat,t)} style={{ padding:'6px 12px', fontSize:12, borderRadius:16, cursor:'pointer', background:'rgba(255,255,255,.03)', border:'1px solid var(--border)', color:'#bbb' }}>{t}</button>)}
             </div>
