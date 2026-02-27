@@ -10,11 +10,11 @@ const SESSION_TYPES = [
 const ENERGY = [{ val:1,emoji:'😵'},{val:2,emoji:'😮‍💨'},{val:3,emoji:'😐'},{val:4,emoji:'😊'},{val:5,emoji:'🔥'}];
 const BELT_COLORS = { white:'#e8e8e0', blue:'#1a5fb4', purple:'#7b2d8e', brown:'#8b5e3c', black:'#444' };
 const CATEGORIES = [
-  { id:'submission', techniques:['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock']},
-  { id:'takedown', techniques:['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Inside Trip','Hip Throw','Shoulder Throw','Foot Sweep','Drop Throw','Guard Pull']},
-  { id:'sweep', techniques:['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Pendulum','Tripod Sweep','Sickle Sweep','Elevator Sweep','Waiter Sweep']},
+  { id:'submission', label:'Submissions', techniques:['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock']},
+  { id:'takedown', label:'Takedowns', techniques:['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Inside Trip','Hip Throw','Shoulder Throw','Foot Sweep','Drop Throw','Guard Pull']},
+  { id:'sweep', label:'Sweeps', techniques:['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Pendulum','Tripod Sweep','Sickle Sweep','Elevator Sweep','Waiter Sweep']},
 ];
-const ALL_TECHNIQUES = CATEGORIES.flatMap(c=>c.techniques.map(t=>({tech:t,cat:c.id})));
+const CAT_COLORS = { takedown:'#ffd54f', submission:'#e57373', sweep:'#64b5f6' };
 const POSITIONS = ['Mount','Back','Closed Guard','Open Guard','Half Guard','Side Control','Standing','Turtle','Leg Entangle'];
 
 function fmt(sec){if(!sec)return'—';const m=Math.floor(sec/60),s=sec%60;return`${m}:${String(s).padStart(2,'0')}`;}
@@ -70,42 +70,98 @@ function SessionEditModal({session, onSave, onClose}){
   );
 }
 
+function EventEditorHistory({events,onChange}){
+  const[direction,setDirection]=useState('offensive');
+  const[cat,setCat]=useState('submission');
+  const[customTech,setCustomTech]=useState('');
+  const[pendingSub,setPendingSub]=useState(null);
+  const needsPosition=cat==='submission'||cat==='sweep';
+
+  function addTech(tech,pos){
+    if(needsPosition&&!pos){setPendingSub({tech,cat});return;}
+    onChange([...events,{event_type:cat,direction,technique:tech,position:pos||null}]);
+  }
+  function confirmPos(pos){onChange([...events,{event_type:pendingSub.cat,direction,technique:pendingSub.tech,position:pos}]);setPendingSub(null);}
+  function addCustom(){if(!customTech.trim())return;onChange([...events,{event_type:cat,direction,technique:customTech.trim(),position:null}]);setCustomTech('');}
+
+  return(
+    <div>
+      {events.length>0&&(
+        <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:10}}>
+          {events.map((e,i)=>(
+            <span key={i} onClick={()=>onChange(events.filter((_,j)=>j!==i))} style={{display:'inline-flex',alignItems:'center',gap:3,padding:'3px 9px',borderRadius:14,fontSize:11,cursor:'pointer',background:e.direction==='offensive'?'rgba(102,187,106,.12)':'rgba(239,83,80,.12)',color:e.direction==='offensive'?'#66bb6a':'#ef5350'}}>
+              {e.direction==='offensive'?'✅':'😤'} {e.technique}{e.position?` (${e.position})`:''} ×
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:2,borderRadius:8,overflow:'hidden',border:'1px solid var(--border)',marginBottom:8}}>
+        {[{d:'offensive',l:'✅ I did',c:'#66bb6a'},{d:'defensive',l:'😤 Done to me',c:'#ef5350'}].map(x=>(
+          <button key={x.d} onClick={()=>setDirection(x.d)} style={{padding:'9px',border:'none',fontSize:12,fontWeight:600,cursor:'pointer',background:direction===x.d?`${x.c}18`:'transparent',color:direction===x.d?x.c:'var(--text-muted)'}}>{x.l}</button>
+        ))}
+      </div>
+      <div style={{display:'flex',gap:4,marginBottom:8,flexWrap:'wrap'}}>
+        {CATEGORIES.map(c=>(
+          <button key={c.id} onClick={()=>{setCat(c.id);setPendingSub(null);}} style={{padding:'4px 10px',fontSize:11,borderRadius:6,border:'none',cursor:'pointer',background:cat===c.id?`${CAT_COLORS[c.id]}22`:'rgba(255,255,255,.04)',color:cat===c.id?CAT_COLORS[c.id]:'var(--text-dim)'}}>{c.label}</button>
+        ))}
+      </div>
+      {pendingSub?(
+        <div style={{marginBottom:8,padding:'10px',background:'rgba(123,45,142,.1)',borderRadius:8,border:'1px solid rgba(123,45,142,.3)'}}>
+          <div style={{fontSize:12,color:'var(--accent)',marginBottom:6,fontWeight:600}}>{pendingSub.tech} — position?</div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:4}}>{POSITIONS.map(p=><button key={p} onClick={()=>confirmPos(p)} style={{padding:'4px 8px',fontSize:11,borderRadius:10,cursor:'pointer',background:'rgba(255,255,255,.04)',border:'1px solid var(--border)',color:'#ccc'}}>{p}</button>)}</div>
+          <button onClick={()=>{onChange([...events,{event_type:'submission',direction,technique:pendingSub.tech,position:null}]);setPendingSub(null);}} style={{background:'none',border:'none',color:'var(--text-muted)',fontSize:11,cursor:'pointer'}}>Skip position</button>
+        </div>
+      ):(
+        needsPosition?(
+          <div>
+            {CATEGORIES.find(c=>c.id===cat)?.techniques.map(t=>(
+              <div key={t} style={{marginBottom:8}}>
+                <div style={{fontSize:11,color:'#ccc',marginBottom:4,fontWeight:500}}>{t}</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
+                  {POSITIONS.map(pos=>(
+                    <button key={pos} onClick={()=>{onChange([...events,{event_type:cat,direction,technique:t,position:pos}]);}} style={{padding:'3px 8px',fontSize:10,borderRadius:10,cursor:'pointer',background:'rgba(255,255,255,.04)',border:'1px solid var(--border)',color:'#aaa'}}>{pos}</button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ):(
+          <div>
+            <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:8}}>
+              {CATEGORIES.find(c=>c.id===cat)?.techniques.map(t=>(
+                <button key={t} onClick={()=>addTech(t,null)} style={{padding:'5px 10px',fontSize:11,borderRadius:14,cursor:'pointer',background:'rgba(255,255,255,.03)',border:'1px solid var(--border)',color:'#bbb'}}>{t}</button>
+              ))}
+            </div>
+            <div style={{display:'flex',gap:6}}>
+              <input className="input" placeholder="Custom technique..." value={customTech} onChange={e=>setCustomTech(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addCustom();}}} style={{flex:1,padding:'7px 10px',fontSize:12}}/>
+              <button onClick={addCustom} style={{padding:'7px 12px',borderRadius:8,background:'rgba(255,255,255,.04)',border:'1px solid var(--border)',color:'var(--text-dim)',fontSize:12,cursor:'pointer'}}>+</button>
+            </div>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
 function RoundEditModal({round, members, onSave, onClose}){
   const[durMin,setDurMin]=useState(round.started_at&&round.ended_at?Math.round((new Date(round.ended_at)-new Date(round.started_at))/60000):'5');
   const[oppQuery,setOppQuery]=useState(round.opponent_name||'');
   const[oppId,setOppId]=useState(round.opponent_id||null);
   const[oppBelt,setOppBelt]=useState(round.opponent_belt||'white');
   const[events,setEvents]=useState([]);
-  const[techQuery,setTechQuery]=useState('');
-  const[direction,setDirection]=useState('offensive');
-  const[pendingSub,setPendingSub]=useState(null);
   const[busy,setBusy]=useState(false);
 
   useEffect(()=>{
     supabase.from('round_events').select('*').eq('round_id',round.id).then(({data})=>setEvents(data||[]));
   },[round.id]);
 
-  const q=techQuery.trim().toLowerCase();
-  const suggestions=q.length>0?ALL_TECHNIQUES.filter(t=>t.tech.toLowerCase().includes(q)).slice(0,6):[];
-  const showAdd=q.length>1&&!ALL_TECHNIQUES.some(t=>t.tech.toLowerCase()===q);
-
-  function addTech(tech,cat){
-    if(cat==='submission'){setPendingSub({tech,cat});setTechQuery('');return;}
-    setEvents(prev=>[...prev,{event_type:cat,direction,technique:tech,position:null,_new:true}]);
-    setTechQuery('');
-  }
-  function confirmPos(pos){setEvents(prev=>[...prev,{event_type:pendingSub.cat,direction,technique:pendingSub.tech,position:pos,_new:true}]);setPendingSub(null);}
-  function addCustom(){if(!q)return;const match=ALL_TECHNIQUES.find(t=>t.tech.toLowerCase().includes(q));const cat=match?.cat||'submission';if(cat==='submission'){setPendingSub({tech:techQuery.trim(),cat});setTechQuery('');return;}setEvents(prev=>[...prev,{event_type:cat,direction,technique:techQuery.trim(),position:null,_new:true}]);setTechQuery('');}
-
-  const mFiltered=q&&!oppId?members.filter(m=>(m.display_name||m.name||'').toLowerCase().includes(oppQuery.toLowerCase())):[];
+  const mFiltered=oppQuery&&!oppId?members.filter(m=>(m.display_name||m.name||'').toLowerCase().includes(oppQuery.toLowerCase())):[];
 
   async function save(){
     setBusy(true);
-    // Update round timing via ended_at
     const dur=parseInt(durMin)||5;
     const newEnded=round.started_at?new Date(new Date(round.started_at).getTime()+dur*60000).toISOString():round.ended_at;
     await supabase.from('rounds').update({ended_at:newEnded,opponent_id:oppId||null,opponent_name:oppId?null:(oppQuery.trim()||null),opponent_belt:oppBelt||null}).eq('id',round.id);
-    // Delete old events and re-insert
     await supabase.from('round_events').delete().eq('round_id',round.id);
     const toInsert=events.filter(e=>e.technique).map(e=>({round_id:round.id,user_id:round.user_id,gym_id:round.gym_id,checkin_id:round.checkin_id,event_type:e.event_type,direction:e.direction,technique:e.technique,position:e.position||null}));
     if(toInsert.length>0)await supabase.from('round_events').insert(toInsert);
@@ -117,7 +173,7 @@ function RoundEditModal({round, members, onSave, onClose}){
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.85)',zIndex:500,display:'flex',alignItems:'flex-end',justifyContent:'center',overflowY:'auto'}}>
       <div style={{background:'#13131f',borderRadius:'16px 16px 0 0',width:'100%',maxWidth:480,padding:24,paddingBottom:40}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-          <h3 style={{fontFamily:'var(--font-d)',fontSize:18}}>Edit Round {round.round_number}</h3>
+          <h3 style={{fontFamily:'var(--font-d)',fontSize:18}}>Round {round.round_number}</h3>
           <button onClick={onClose} style={{background:'none',border:'none',color:'var(--text-muted)',fontSize:22,cursor:'pointer'}}>×</button>
         </div>
 
@@ -146,38 +202,9 @@ function RoundEditModal({round, members, onSave, onClose}){
           )}
         </div>
 
-        <div style={{marginBottom:14}}>
-          <div className="label" style={{marginBottom:6}}>Techniques</div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:2,borderRadius:8,overflow:'hidden',marginBottom:8,border:'1px solid var(--border)'}}>
-            {[{d:'offensive',l:'✅ I did',c:'#66bb6a'},{d:'defensive',l:'😤 Done to me',c:'#ef5350'}].map(x=>(
-              <button key={x.d} onClick={()=>setDirection(x.d)} style={{padding:'9px 0',border:'none',fontSize:12,fontWeight:600,cursor:'pointer',background:direction===x.d?`${x.c}18`:'transparent',color:direction===x.d?x.c:'var(--text-muted)'}}>{x.l}</button>
-            ))}
-          </div>
-          {pendingSub&&(
-            <div style={{marginBottom:8,padding:'10px',background:'rgba(123,45,142,.1)',borderRadius:8,border:'1px solid rgba(123,45,142,.3)'}}>
-              <div style={{fontSize:12,color:'var(--accent)',marginBottom:6,fontWeight:600}}>{pendingSub.tech} — position?</div>
-              <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:4}}>{POSITIONS.map(p=><button key={p} onClick={()=>confirmPos(p)} style={{padding:'4px 8px',fontSize:11,borderRadius:10,cursor:'pointer',background:'rgba(255,255,255,.04)',border:'1px solid var(--border)',color:'#ccc'}}>{p}</button>)}</div>
-              <button onClick={()=>{setEvents(prev=>[...prev,{event_type:'submission',direction,technique:pendingSub.tech,position:null,_new:true}]);setPendingSub(null);}} style={{background:'none',border:'none',color:'var(--text-muted)',fontSize:11,cursor:'pointer'}}>Skip</button>
-            </div>
-          )}
-          <div style={{position:'relative'}}>
-            <input className="input" placeholder="Add technique..." value={techQuery} onChange={e=>setTechQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();if(suggestions.length>0)addTech(suggestions[0].tech,suggestions[0].cat);else if(showAdd)addCustom();}}} autoComplete="off"/>
-            {(suggestions.length>0||showAdd)&&(
-              <div style={{position:'absolute',top:'100%',left:0,right:0,zIndex:100,background:'#151520',border:'1px solid var(--border)',borderRadius:8,marginTop:2,boxShadow:'0 6px 20px rgba(0,0,0,.5)',maxHeight:180,overflowY:'auto'}}>
-                {suggestions.map((s,i)=><div key={i} onClick={()=>addTech(s.tech,s.cat)} style={{padding:'8px 12px',display:'flex',justifyContent:'space-between',cursor:'pointer',borderBottom:'1px solid rgba(255,255,255,.04)',fontSize:13,color:'#f0ece2'}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}><span>{s.tech}</span><span style={{fontSize:10,color:'var(--text-muted)',textTransform:'capitalize'}}>{s.cat}</span></div>)}
-                {showAdd&&<div onClick={addCustom} style={{padding:'8px 12px',cursor:'pointer',fontSize:13,color:'var(--accent)',fontWeight:600}} onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>+ Add "{techQuery.trim()}"</div>}
-              </div>
-            )}
-          </div>
-          {events.length>0&&(
-            <div style={{display:'flex',flexWrap:'wrap',gap:5,marginTop:8}}>
-              {events.map((e,i)=>(
-                <span key={i} onClick={()=>setEvents(prev=>prev.filter((_,j)=>j!==i))} style={{display:'inline-flex',alignItems:'center',gap:3,padding:'4px 9px',borderRadius:16,fontSize:11,cursor:'pointer',background:e.direction==='offensive'?'rgba(102,187,106,.15)':'rgba(239,83,80,.15)',color:e.direction==='offensive'?'#66bb6a':'#ef5350',border:`1px solid ${e.direction==='offensive'?'rgba(102,187,106,.3)':'rgba(239,83,80,.3)'}`}}>
-                  {e.technique}{e.position?` (${e.position})`:''} ×
-                </span>
-              ))}
-            </div>
-          )}
+        <div style={{marginBottom:18}}>
+          <div className="label" style={{marginBottom:10,display:'block'}}>Techniques & Events</div>
+          <EventEditorHistory events={events} onChange={setEvents}/>
         </div>
 
         <button className="btn btn-primary" onClick={save} disabled={busy} style={{width:'100%'}}>{busy?'Saving...':'Save Round'}</button>

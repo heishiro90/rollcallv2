@@ -112,27 +112,29 @@ export default function DashboardPage() {
       return { ...g, progress: prog, _current: Math.round(current * 10) / 10, completed: prog >= 100 };
     });
 
-    // Opponents — includes both real accounts (opponent_id) and named contacts/guests (opponent_name)
+    // Opponents — 5 most recent, with W/L/D and mat time
     const oppMap = {};
     RAll.forEach(r => {
       const key = r.opponent_id || `name:${r.opponent_name}`;
       if (!key || key === 'name:' || key === 'name:null') return;
       if (!oppMap[key]) {
         if (r.opponent_id && r.profiles) {
-          oppMap[key] = { name: r.profiles.display_name, emoji: r.profiles.avatar_emoji, avatar_url: r.profiles.avatar_url, belt: r.profiles.belt, rounds: 0 };
+          oppMap[key] = { name: r.profiles.display_name, emoji: r.profiles.avatar_emoji, avatar_url: r.profiles.avatar_url, belt: r.profiles.belt, rounds: 0, wins: 0, losses: 0, draws: 0, matTime: 0, lastDate: null };
         } else if (r.opponent_name) {
-          oppMap[key] = { name: r.opponent_name, emoji: null, avatar_url: null, belt: r.opponent_belt || 'white', rounds: 0 };
+          oppMap[key] = { name: r.opponent_name, emoji: null, avatar_url: null, belt: r.opponent_belt || 'white', rounds: 0, wins: 0, losses: 0, draws: 0, matTime: 0, lastDate: null };
         }
       }
-      if (oppMap[key]) oppMap[key].rounds++;
+      if (oppMap[key]) {
+        oppMap[key].rounds++;
+        if (r.result === 'win') oppMap[key].wins++;
+        else if (r.result === 'loss') oppMap[key].losses++;
+        else if (r.result === 'draw') oppMap[key].draws++;
+        oppMap[key].matTime += (r.duration_seconds || 0);
+        const d = r.started_at || r.ended_at;
+        if (d && (!oppMap[key].lastDate || d > oppMap[key].lastDate)) oppMap[key].lastDate = d;
+      }
     });
-    const oppEvents = {};
-    AEV.forEach(e => {
-      const rd = AR.find(r => r.id === e.round_id);
-      const key = rd?.opponent_id || (rd?.opponent_name ? `name:${rd.opponent_name}` : null);
-      if (key) { oppEvents[key] = oppEvents[key] || { off: 0, def: 0 }; oppEvents[key][e.direction === 'offensive' ? 'off' : 'def']++; }
-    });
-    const opponents = Object.entries(oppMap).map(([id, v]) => ({ id, ...v, off: oppEvents[id]?.off || 0, def: oppEvents[id]?.def || 0 })).sort((a, b) => b.rounds - a.rounds).slice(0, 8);
+    const opponents = Object.entries(oppMap).map(([id, v]) => ({ id, ...v })).sort((a, b) => (b.lastDate || '').localeCompare(a.lastDate || '')).slice(0, 5);
 
     // Techniques drilled grouped by day
     const techByDay = {};
@@ -199,7 +201,7 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div className="card">
               <div className="section-title">Belt Journey</div>
               {d.beltHistory.length === 0 ? <div><BeltSVG belt={profile?.belt} stripes={profile?.stripes || 0} width={80} height={16} /><div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>Add in Settings</div></div> : d.beltHistory.map((b, i) => (
@@ -211,10 +213,6 @@ export default function DashboardPage() {
               {d.goals.length === 0 ? <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Set in Settings</div> : d.goals.map((g, i) => (
                 <div key={i} style={{ marginBottom: 8 }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}><span style={{ fontSize: 12, color: g.completed ? '#66bb6a' : '#ccc' }}>{g.completed ? '✓ ' : ''}{g.title}</span><span style={{ fontSize: 11, color: g.completed ? '#66bb6a' : '#ce93d8' }}>{g._current !== undefined ? `${g._current}/${g.target_value}` : `${g.progress}%`}</span></div><Bar value={g.progress} max={100} color={g.completed ? '#66bb6a' : '#ce93d8'} /></div>
               ))}
-            </div>
-            <div className="card">
-              <div className="section-title">6-Month Trend</div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 80 }}>{d.history.map((m, i) => { const mx = Math.max(...d.history.map(x => x.sessions), 1); return <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>{m.sessions > 0 && <span style={{ fontSize: 8, color: 'var(--text-dim)' }}>{m.sessions}</span>}<div style={{ width: '100%', height: m.sessions > 0 ? `${(m.sessions / mx) * 50}px` : 2, background: i === d.history.length - 1 ? 'linear-gradient(to top, #1a5fb4, #64b5f6)' : 'rgba(255,255,255,.06)', borderRadius: 3 }} /><span style={{ fontSize: 8, color: 'var(--text-muted)' }}>{m.label}</span></div>; })}</div>
             </div>
           </div>
         </div>
@@ -272,16 +270,36 @@ export default function DashboardPage() {
           {d.opponents.length > 0 && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div className="section-title">Sparring Partners</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
-                {d.opponents.map((o, i) => (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+                {d.opponents.map((o, i) => {
+                  const matMin = Math.round((o.matTime || 0) / 60);
+                  const matStr = matMin >= 60 ? `${Math.floor(matMin/60)}h${matMin%60>0?` ${matMin%60}m`:''}` : matMin > 0 ? `${matMin}m` : null;
+                  return (
                   <div key={i} className="card" style={{ padding: 12, textAlign: 'center' }}>
-                    <Av p={{ avatar_url: o.avatar_url, avatar_emoji: o.emoji }} size={24} />
-                    <div style={{ fontSize: 12, color: '#ddd', margin: '4px 0' }}>{o.name?.split(' ')[0]}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>{o.belt} · {o.rounds} rds</div>
-                    <div style={{ fontSize: 11 }}><span style={{ color: '#66bb6a' }}>+{o.off}</span> <span style={{ color: '#ef5350' }}>-{o.def}</span></div>
+                    <Av p={{ avatar_url: o.avatar_url, avatar_emoji: o.emoji }} size={28} />
+                    <div style={{ fontSize: 13, color: '#ddd', margin: '5px 0 2px', fontWeight: 500 }}>{o.name?.split(' ')[0]}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 3 }}>
+                      <span style={{ display:'inline-block', width:8, height:8, borderRadius:'50%', background: BELT_COLORS[o.belt]||'#888', border: o.belt==='white'?'1px solid #999':'none' }} />
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{o.belt}</span>
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-dim)', marginBottom: 5 }}>{o.rounds} rds{matStr ? ` · ${matStr}` : ''}</div>
+                    <div style={{ fontSize: 11, display: 'flex', justifyContent: 'center', gap: 6 }}>
+                      <span style={{ color: '#66bb6a' }}>W{o.wins}</span>
+                      <span style={{ color: '#ef5350' }}>L{o.losses}</span>
+                      {o.draws > 0 && <span style={{ color: '#ffb74d' }}>D{o.draws}</span>}
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
+            </div>
+          )}
+          {d.topOffense.length > 0 && (
+            <div className="card" style={{ marginBottom: 14 }}>
+              <div className="section-title" style={{ color: '#66bb6a' }}>Best Moves</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8 }}>{d.topOffense.map(([n, c], i) => (
+                <div key={i} className="card" style={{ textAlign: 'center', padding: 10, border: i === 0 ? '1px solid rgba(102,187,106,.3)' : '1px solid var(--border)' }}><div style={{ fontFamily: 'var(--font-d)', fontSize: 20, color: i === 0 ? '#66bb6a' : '#f0ece2' }}>{c}</div><div style={{ fontSize: 10, color: '#ccc', marginTop: 2 }}>{n}</div></div>
+              ))}</div>
             </div>
           )}
           <div className="card" style={{ marginBottom: 14 }}>
@@ -289,14 +307,6 @@ export default function DashboardPage() {
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Thicker = more used. Tap a path for details. Submissions map from the position you picked during logging.</p>
             <TechTree events={d.allEventsData || []} />
           </div>
-          {d.topOffense.length > 0 && (
-            <div className="card">
-              <div className="section-title" style={{ color: '#66bb6a' }}>Best Moves</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: 8 }}>{d.topOffense.map(([n, c], i) => (
-                <div key={i} className="card" style={{ textAlign: 'center', padding: 10, border: i === 0 ? '1px solid rgba(102,187,106,.3)' : '1px solid var(--border)' }}><div style={{ fontFamily: 'var(--font-d)', fontSize: 20, color: i === 0 ? '#66bb6a' : '#f0ece2' }}>{c}</div><div style={{ fontSize: 10, color: '#ccc', marginTop: 2 }}>{n}</div></div>
-              ))}</div>
-            </div>
-          )}
         </div>
       )}
 

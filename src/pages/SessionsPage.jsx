@@ -25,10 +25,8 @@ const CATEGORIES = [
   { id: 'takedown', label: 'Takedown', techniques: ['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Hip Throw','Guard Pull'] },
   { id: 'submission', label: 'Submission', techniques: ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Bow & Arrow','Heel Hook','Americana','Loop Choke','Cross Collar'] },
   { id: 'sweep', label: 'Sweep', techniques: ['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Elevator Sweep','Waiter Sweep'] },
-  { id: 'pass', label: 'Pass', techniques: ['Knee Slice','Toreando','Over-Under','Stack Pass','Leg Drag','Smash Pass','Backstep'] },
-  { id: 'escape', label: 'Escape', techniques: ['Bridge & Roll','Hip Escape','Frame & Reguard','Granby Roll','Back Escape'] },
 ];
-const CAT_COLORS = { takedown: '#ffd54f', submission: '#e57373', sweep: '#64b5f6', pass: '#ffb74d', escape: '#81c784' };
+const CAT_COLORS = { takedown: '#ffd54f', submission: '#e57373', sweep: '#64b5f6' };
 
 function fmt(sec) {
   if (!sec) return '0:00';
