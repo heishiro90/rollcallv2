@@ -396,7 +396,9 @@ function AddRoundForm({ session, members, onSave, onClose }) {
       round_number: roundCount + 1,
       duration_seconds,
       result: result || null,
-      ended_at: new Date().toISOString(),
+      // Use session date for started_at so the round appears in the right month's stats
+      started_at: session.checked_in_at || new Date().toISOString(),
+      ended_at: session.checked_out_at || new Date().toISOString(),
     };
     if (oppId && !oppId.startsWith('contact_')) {
       roundData.opponent_id = oppId;
