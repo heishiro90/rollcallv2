@@ -177,14 +177,37 @@ const RESULTS_SIMPLE = [{ id:'win', label:'V', color:'#66bb6a' }, { id:'draw', l
 function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRound, setAddingRound, onDone }) {
   const [durationStr, setDurationStr] = useState('5:00');
   const [result, setResult] = useState(null);
-  const [oppMode, setOppMode] = useState('solo'); // solo | member | guest
+  const [oppMode, setOppMode] = useState('solo');
   const [oppId, setOppId] = useState('');
   const [guestName, setGuestName] = useState('');
   const [guestBelt, setGuestBelt] = useState('white');
+  const [events, setEvents] = useState([]);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [evDirection, setEvDirection] = useState('offensive');
+  const [evCat, setEvCat] = useState('submission');
+  const [evCustom, setEvCustom] = useState('');
 
   const sessionDate = new Date(session.checked_in_at).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+
+  const POSITIONS = ['Guard', 'Half Guard', 'Mount', 'Back', 'Side Control', 'Turtle', 'Standing'];
+  const EV_CATEGORIES = [
+    { id:'submission', label:'Soumission', techniques:['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Heel Hook','Americana','Bow & Arrow','Loop Choke','Cross Collar'] },
+    { id:'sweep', label:'Sweep', techniques:['Scissor','Hip Bump','Flower','Berimbolo','Butterfly','Tripod','Sickle'] },
+    { id:'pass', label:'Passage', techniques:['Knee Slice','Toreando','Over-Under','Stack','Leg Drag','Smash Pass'] },
+    { id:'takedown', label:'Takedown', techniques:['Single Leg','Double Leg','Arm Drag','Snap Down','Hip Throw'] },
+    { id:'escape', label:'Escape', techniques:['Bridge & Roll','Hip Escape','Frame & Reguard','Granby Roll'] },
+  ];
+  const needsPosition = (evCat === 'submission' || evCat === 'sweep');
+
+  function addEvent(tech, pos) {
+    setEvents(prev => [...prev, { event_type: evCat, direction: evDirection, technique: tech, position: pos || null }]);
+  }
+  function addCustomEvent(pos) {
+    if (!evCustom.trim()) return;
+    setEvents(prev => [...prev, { event_type: evCat, direction: evDirection, technique: evCustom.trim(), position: pos || null }]);
+    setEvCustom('');
+  }
 
   async function handleAdd() {
     setSaving(true); setErr('');
@@ -195,10 +218,10 @@ function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRo
     } else if (oppMode === 'guest') {
       oppName = guestName; oppBeltVal = guestBelt;
     }
-    const error = await onAddRound({ durationStr, result, oppName, oppBelt: oppBeltVal, oppId: oppIdVal });
+    const error = await onAddRound({ durationStr, result, oppName, oppBelt: oppBeltVal, oppId: oppIdVal, events });
     if (error) setErr(error.message || 'Erreur');
     setSaving(false);
-    if (!error) { setDurationStr('5:00'); setResult(null); setOppMode('solo'); setOppId(''); setGuestName(''); }
+    if (!error) { setDurationStr('5:00'); setResult(null); setOppMode('solo'); setOppId(''); setGuestName(''); setEvents([]); }
   }
 
   return (
@@ -265,6 +288,62 @@ function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRo
               </div>
             </div>
           )}
+          {/* Events / techniques */}
+          <div style={{ marginBottom:10 }}>
+            <div className="label" style={{ marginBottom:6 }}>Techniques & Événements</div>
+            {events.length > 0 && (
+              <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:8 }}>
+                {events.map((e,i) => (
+                  <span key={i} onClick={() => setEvents(ev => ev.filter((_,j)=>j!==i))} style={{ display:'inline-flex', alignItems:'center', gap:3, padding:'3px 9px', borderRadius:14, fontSize:11, cursor:'pointer', background: e.direction==='offensive'?'rgba(102,187,106,.12)':'rgba(239,83,80,.12)', color: e.direction==='offensive'?'#66bb6a':'#ef5350' }}>
+                    {e.direction==='offensive'?'✅':'😤'} {e.technique}{e.position?` (${e.position})`:''} ×
+                  </span>
+                ))}
+              </div>
+            )}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:2, borderRadius:8, overflow:'hidden', border:'1px solid var(--border)', marginBottom:8 }}>
+              {[{d:'offensive',l:'✅ Moi'},{d:'defensive',l:'😤 Eux'}].map(x => (
+                <button key={x.d} type="button" onClick={() => setEvDirection(x.d)} style={{ padding:'7px', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', background: evDirection===x.d?(x.d==='offensive'?'rgba(102,187,106,.15)':'rgba(239,83,80,.15)'):'transparent', color: evDirection===x.d?(x.d==='offensive'?'#66bb6a':'#ef5350'):'var(--text-muted)' }}>{x.l}</button>
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:4, marginBottom:8, flexWrap:'wrap' }}>
+              {EV_CATEGORIES.map(c => (
+                <button key={c.id} type="button" onClick={() => setEvCat(c.id)} style={{ padding:'4px 8px', fontSize:11, borderRadius:6, border:'none', cursor:'pointer', background: evCat===c.id?'rgba(155,77,202,.2)':'rgba(255,255,255,.04)', color: evCat===c.id?'var(--accent)':'var(--text-dim)' }}>{c.label}</button>
+              ))}
+            </div>
+            {needsPosition ? (
+              <div>
+                <div style={{ fontSize:11, color:'var(--text-muted)', marginBottom:6 }}>Choisis la technique, puis la position :</div>
+                {EV_CATEGORIES.find(c=>c.id===evCat)?.techniques.map(t => (
+                  <div key={t} style={{ marginBottom:6 }}>
+                    <div style={{ fontSize:11, color:'#bbb', marginBottom:3 }}>{t}</div>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
+                      {POSITIONS.map(pos => (
+                        <button key={pos} type="button" onClick={() => addEvent(t, pos)} style={{ padding:'3px 8px', fontSize:10, borderRadius:10, cursor:'pointer', background:'rgba(255,255,255,.04)', border:'1px solid var(--border)', color:'#aaa' }}>{pos}</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <div style={{ display:'flex', gap:6, marginTop:6 }}>
+                  <input className="input" placeholder="Autre technique..." value={evCustom} onChange={e=>setEvCustom(e.target.value)} style={{ flex:1, padding:'6px 10px', fontSize:12 }} />
+                  {POSITIONS.map(pos => (
+                    <button key={pos} type="button" onClick={() => addCustomEvent(pos)} style={{ padding:'6px 8px', fontSize:10, borderRadius:6, background:'rgba(255,255,255,.04)', border:'1px solid var(--border)', color:'#aaa', cursor:'pointer' }}>{pos}</button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:4, marginBottom:6 }}>
+                  {EV_CATEGORIES.find(c=>c.id===evCat)?.techniques.map(t => (
+                    <button key={t} type="button" onClick={() => addEvent(t, null)} style={{ padding:'5px 10px', fontSize:11, borderRadius:14, cursor:'pointer', background:'rgba(255,255,255,.03)', border:'1px solid var(--border)', color:'#bbb' }}>{t}</button>
+                  ))}
+                </div>
+                <div style={{ display:'flex', gap:6 }}>
+                  <input className="input" placeholder="Autre technique..." value={evCustom} onChange={e=>setEvCustom(e.target.value)} style={{ flex:1, padding:'6px 10px', fontSize:12 }} />
+                  <button type="button" onClick={() => addCustomEvent(null)} style={{ padding:'6px 10px', borderRadius:8, background:'rgba(255,255,255,.04)', border:'1px solid var(--border)', color:'var(--text-dim)', fontSize:12, cursor:'pointer' }}>+</button>
+                </div>
+              </div>
+            )}
+          </div>
           {err && <div style={{ color:'#ef5350', fontSize:12, marginBottom:8 }}>⚠️ {err}</div>}
           <div style={{ display:'flex', gap:8 }}>
             <button className="btn btn-primary btn-small" onClick={handleAdd} disabled={saving} style={{ flex:2 }}>{saving ? '...' : 'Sauvegarder ce round'}</button>
@@ -473,7 +552,7 @@ export default function CheckInPage() {
 
   async function addRoundToPastSession(roundInfo) {
     if (!pastCreatedSession) return;
-    const { durationStr, result, oppName, oppBelt, oppId } = roundInfo;
+    const { durationStr, result, oppName, oppBelt, oppId, events: roundEvents = [] } = roundInfo;
     const parseSec = (s) => { const p = s.split(':'); if (p.length === 2) return parseInt(p[0])*60+parseInt(p[1]||0); return parseInt(s||0)*60; };
     const duration_seconds = parseSec(durationStr);
     const startedAt = new Date(pastCreatedSession.checked_in_at);
@@ -495,9 +574,17 @@ export default function CheckInPage() {
       roundData.opponent_name = oppName;
       roundData.opponent_belt = oppBelt || null;
     }
-    const { error } = await supabase.from('rounds').insert(roundData);
-    if (!error) {
-      setPastRounds(prev => [...prev, { ...roundData, _label: `Round ${pastRounds.length + 1}${oppName ? ' vs ' + oppName : ''}${result ? ' · ' + result : ''}` }]);
+    const { data: newRound, error } = await supabase.from('rounds').insert(roundData).select().single();
+    if (!error && newRound) {
+      if (roundEvents.length > 0) {
+        await supabase.from('round_events').insert(roundEvents.map(e => ({
+          round_id: newRound.id, checkin_id: pastCreatedSession.id,
+          user_id: user.id, gym_id: gym.id,
+          event_type: e.event_type, direction: e.direction,
+          technique: e.technique, position: e.position || null,
+        })));
+      }
+      setPastRounds(prev => [...prev, { ...roundData, _label: `Round ${pastRounds.length + 1}${oppName ? ' vs ' + oppName : ''}${result ? ' · ' + result : ''}${roundEvents.length ? ` · ${roundEvents.length} évts` : ''}` }]);
       setAddingPastRound(false);
     }
     return error;

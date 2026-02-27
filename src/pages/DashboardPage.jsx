@@ -58,7 +58,7 @@ export default function DashboardPage() {
       supabase.from('weight_logs').select('*').eq('user_id', user.id).order('logged_at').limit(60),
       supabase.from('weight_goals').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('injuries').select('*').eq('user_id', user.id).order('started_at', { ascending: false }),
-      supabase.from('rounds').select('*, profiles!rounds_opponent_id_fkey(display_name, avatar_emoji, avatar_url, belt)').eq('user_id', user.id).eq('gym_id', gym.id).not('ended_at', 'is', null).not('opponent_id', 'is', null),
+      supabase.from('rounds').select('*, profiles!rounds_opponent_id_fkey(display_name, avatar_emoji, avatar_url, belt)').eq('user_id', user.id).eq('gym_id', gym.id).not('ended_at', 'is', null).or('opponent_id.not.is.null,opponent_name.not.is.null'),
     ]);
 
     const M = mc || [], A = ac || [], MR = mr || [], AR = ar || [], MT = mt || [], AT = at || [];
@@ -112,17 +112,25 @@ export default function DashboardPage() {
       return { ...g, progress: prog, _current: Math.round(current * 10) / 10, completed: prog >= 100 };
     });
 
-    // Opponents
+    // Opponents — includes both real accounts (opponent_id) and named contacts/guests (opponent_name)
     const oppMap = {};
     RAll.forEach(r => {
-      if (!r.opponent_id || !r.profiles) return;
-      if (!oppMap[r.opponent_id]) oppMap[r.opponent_id] = { name: r.profiles.display_name, emoji: r.profiles.avatar_emoji, avatar_url: r.profiles.avatar_url, belt: r.profiles.belt, rounds: 0 };
-      oppMap[r.opponent_id].rounds++;
+      const key = r.opponent_id || `name:${r.opponent_name}`;
+      if (!key || key === 'name:' || key === 'name:null') return;
+      if (!oppMap[key]) {
+        if (r.opponent_id && r.profiles) {
+          oppMap[key] = { name: r.profiles.display_name, emoji: r.profiles.avatar_emoji, avatar_url: r.profiles.avatar_url, belt: r.profiles.belt, rounds: 0 };
+        } else if (r.opponent_name) {
+          oppMap[key] = { name: r.opponent_name, emoji: null, avatar_url: null, belt: r.opponent_belt || 'white', rounds: 0 };
+        }
+      }
+      if (oppMap[key]) oppMap[key].rounds++;
     });
     const oppEvents = {};
     AEV.forEach(e => {
       const rd = AR.find(r => r.id === e.round_id);
-      if (rd?.opponent_id) { oppEvents[rd.opponent_id] = oppEvents[rd.opponent_id] || { off: 0, def: 0 }; oppEvents[rd.opponent_id][e.direction === 'offensive' ? 'off' : 'def']++; }
+      const key = rd?.opponent_id || (rd?.opponent_name ? `name:${rd.opponent_name}` : null);
+      if (key) { oppEvents[key] = oppEvents[key] || { off: 0, def: 0 }; oppEvents[key][e.direction === 'offensive' ? 'off' : 'def']++; }
     });
     const opponents = Object.entries(oppMap).map(([id, v]) => ({ id, ...v, off: oppEvents[id]?.off || 0, def: oppEvents[id]?.def || 0 })).sort((a, b) => b.rounds - a.rounds).slice(0, 8);
 
@@ -191,7 +199,7 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
             <div className="card">
               <div className="section-title">Belt Journey</div>
               {d.beltHistory.length === 0 ? <div><BeltSVG belt={profile?.belt} stripes={profile?.stripes || 0} width={80} height={16} /><div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>Add in Settings</div></div> : d.beltHistory.map((b, i) => (
@@ -203,6 +211,10 @@ export default function DashboardPage() {
               {d.goals.length === 0 ? <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Set in Settings</div> : d.goals.map((g, i) => (
                 <div key={i} style={{ marginBottom: 8 }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}><span style={{ fontSize: 12, color: g.completed ? '#66bb6a' : '#ccc' }}>{g.completed ? '✓ ' : ''}{g.title}</span><span style={{ fontSize: 11, color: g.completed ? '#66bb6a' : '#ce93d8' }}>{g._current !== undefined ? `${g._current}/${g.target_value}` : `${g.progress}%`}</span></div><Bar value={g.progress} max={100} color={g.completed ? '#66bb6a' : '#ce93d8'} /></div>
               ))}
+            </div>
+            <div className="card">
+              <div className="section-title">6-Month Trend</div>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 80 }}>{d.history.map((m, i) => { const mx = Math.max(...d.history.map(x => x.sessions), 1); return <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>{m.sessions > 0 && <span style={{ fontSize: 8, color: 'var(--text-dim)' }}>{m.sessions}</span>}<div style={{ width: '100%', height: m.sessions > 0 ? `${(m.sessions / mx) * 50}px` : 2, background: i === d.history.length - 1 ? 'linear-gradient(to top, #1a5fb4, #64b5f6)' : 'rgba(255,255,255,.06)', borderRadius: 3 }} /><span style={{ fontSize: 8, color: 'var(--text-muted)' }}>{m.label}</span></div>; })}</div>
             </div>
           </div>
         </div>

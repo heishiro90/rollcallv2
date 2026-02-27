@@ -136,21 +136,25 @@ function InlineOpponentPicker({ members, oppName, oppBelt, oppId, onChange }) {
   );
 }
 
+const POSITIONS = ['Guard', 'Half Guard', 'Mount', 'Back', 'Side Control', 'Turtle', 'Standing'];
+
 // ── Round event editor ─────────────────────────────────────────────────
 function EventEditor({ events, onChange }) {
   const [direction, setDirection] = useState('offensive');
   const [cat, setCat] = useState('submission');
   const [customTech, setCustomTech] = useState('');
 
-  function addTech(tech) {
-    onChange([...events, { event_type: cat, direction, technique: tech, position: null }]);
+  const needsPosition = cat === 'submission' || cat === 'sweep';
+
+  function addTech(tech, pos) {
+    onChange([...events, { event_type: cat, direction, technique: tech, position: pos || null }]);
   }
   function removeEvent(i) {
     onChange(events.filter((_, j) => j !== i));
   }
-  function addCustom() {
+  function addCustom(pos) {
     if (!customTech.trim()) return;
-    onChange([...events, { event_type: cat, direction, technique: customTech.trim(), position: null }]);
+    onChange([...events, { event_type: cat, direction, technique: customTech.trim(), position: pos || null }]);
     setCustomTech('');
   }
 
@@ -165,7 +169,7 @@ function EventEditor({ events, onChange }) {
               background: e.direction === 'offensive' ? 'rgba(102,187,106,.12)' : 'rgba(239,83,80,.12)',
               color: e.direction === 'offensive' ? '#66bb6a' : '#ef5350',
             }}>
-              {e.direction === 'offensive' ? '✅' : '😤'} {e.technique} ×
+              {e.direction === 'offensive' ? '✅' : '😤'} {e.technique}{e.position ? ` (${e.position})` : ''} ×
             </span>
           ))}
         </div>
@@ -188,20 +192,51 @@ function EventEditor({ events, onChange }) {
           }}>{c.label}</button>
         ))}
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-        {CATEGORIES.find(c => c.id === cat)?.techniques.map(t => (
-          <button key={t} type="button" onClick={() => addTech(t)} style={{
-            padding: '5px 10px', fontSize: 11, borderRadius: 14, cursor: 'pointer',
-            background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: '#bbb',
-          }}>{t}</button>
-        ))}
-      </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <input className="input" placeholder="Autre technique..." value={customTech} onChange={e => setCustomTech(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
-          style={{ flex: 1, padding: '7px 10px', fontSize: 12 }} />
-        <button type="button" onClick={addCustom} style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+</button>
-      </div>
+
+      {needsPosition ? (
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Technique → puis choisis la position :</div>
+          {CATEGORIES.find(c => c.id === cat)?.techniques.map(t => (
+            <div key={t} style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: '#ccc', marginBottom: 4, fontWeight: 500 }}>{t}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                {POSITIONS.map(pos => (
+                  <button key={pos} type="button" onClick={() => addTech(t, pos)} style={{
+                    padding: '3px 8px', fontSize: 10, borderRadius: 10, cursor: 'pointer',
+                    background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#aaa',
+                  }}>{pos}</button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+            <input className="input" placeholder="Autre technique..." value={customTech} onChange={e => setCustomTech(e.target.value)}
+              style={{ flex: 1, minWidth: 120, padding: '6px 10px', fontSize: 12 }} />
+            {POSITIONS.map(pos => (
+              <button key={pos} type="button" onClick={() => addCustom(pos)} style={{
+                padding: '6px 8px', fontSize: 10, borderRadius: 6, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#aaa', cursor: 'pointer',
+              }}>{pos}</button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+            {CATEGORIES.find(c => c.id === cat)?.techniques.map(t => (
+              <button key={t} type="button" onClick={() => addTech(t, null)} style={{
+                padding: '5px 10px', fontSize: 11, borderRadius: 14, cursor: 'pointer',
+                background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: '#bbb',
+              }}>{t}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input className="input" placeholder="Autre technique..." value={customTech} onChange={e => setCustomTech(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(null); } }}
+              style={{ flex: 1, padding: '7px 10px', fontSize: 12 }} />
+            <button type="button" onClick={() => addCustom(null)} style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
