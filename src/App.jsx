@@ -7,13 +7,15 @@ import DashboardPage from './pages/DashboardPage';
 import CoachPage from './pages/CoachPage';
 import GymPage from './pages/GymPage';
 import ProfilePage from './pages/ProfilePage';
+import SessionsPage from './pages/SessionsPage';
 
 const TABS = [
   { id: 'checkin', label: 'Train' },
+  { id: 'sessions', label: 'Historique' },
   { id: 'dashboard', label: 'Stats' },
-  { id: 'coach', label: 'Class' },
+  { id: 'coach', label: 'Cours' },
   { id: 'gym', label: 'Gym' },
-  { id: 'profile', label: 'Settings' },
+  { id: 'profile', label: 'Réglages' },
 ];
 
 function AppContent() {
@@ -30,6 +32,7 @@ function AppContent() {
     <div className="page">
       <div style={{ flex: 1, paddingBottom: 56 }}>
         {tab === 'checkin' && <CheckInPage />}
+        {tab === 'sessions' && <SessionsPage />}
         {tab === 'dashboard' && <DashboardPage />}
         {tab === 'coach' && <CoachPage />}
         {tab === 'gym' && <GymPage />}
