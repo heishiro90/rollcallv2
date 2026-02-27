@@ -170,6 +170,112 @@ function InjuryCheckModal({ injuries, onDone }) {
   );
 }
 
+const BELTS_SIMPLE = ['white','blue','purple','brown','black'];
+const BELT_DOT = { white:'#e0e0d0', blue:'#1a5fb4', purple:'#7b2d8e', brown:'#8b5e3c', black:'#1a1a1a' };
+const RESULTS_SIMPLE = [{ id:'win', label:'V', color:'#66bb6a' }, { id:'draw', label:'N', color:'#ffb74d' }, { id:'loss', label:'D', color:'#ef5350' }];
+
+function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRound, setAddingRound, onDone }) {
+  const [durationStr, setDurationStr] = useState('5:00');
+  const [result, setResult] = useState(null);
+  const [oppMode, setOppMode] = useState('solo'); // solo | member | guest
+  const [oppId, setOppId] = useState('');
+  const [guestName, setGuestName] = useState('');
+  const [guestBelt, setGuestBelt] = useState('white');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const sessionDate = new Date(session.checked_in_at).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+
+  async function handleAdd() {
+    setSaving(true); setErr('');
+    let oppName = '', oppBeltVal = 'white', oppIdVal = null;
+    if (oppMode === 'member' && oppId) {
+      const m = members.find(x => x.user_id === oppId);
+      oppName = m?.display_name || ''; oppBeltVal = m?.belt || 'white'; oppIdVal = oppId;
+    } else if (oppMode === 'guest') {
+      oppName = guestName; oppBeltVal = guestBelt;
+    }
+    const error = await onAddRound({ durationStr, result, oppName, oppBelt: oppBeltVal, oppId: oppIdVal });
+    if (error) setErr(error.message || 'Erreur');
+    setSaving(false);
+    if (!error) { setDurationStr('5:00'); setResult(null); setOppMode('solo'); setOppId(''); setGuestName(''); }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom:16, border:'1px solid rgba(102,187,106,.25)' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+        <div>
+          <div style={{ fontSize:12, color:'#66bb6a', fontWeight:700, textTransform:'uppercase', letterSpacing:1 }}>✓ Session sauvegardée</div>
+          <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>{sessionDate}</div>
+        </div>
+        <button onClick={onDone} style={{ padding:'6px 14px', borderRadius:8, background:'rgba(255,255,255,.05)', border:'1px solid var(--border)', color:'var(--text-dim)', fontSize:12, cursor:'pointer' }}>Terminé</button>
+      </div>
+
+      {rounds.length > 0 && (
+        <div style={{ marginBottom:12 }}>
+          {rounds.map((r, i) => (
+            <div key={i} style={{ fontSize:12, color:'#aaa', padding:'4px 0', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
+              {r._label}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!addingRound ? (
+        <button onClick={() => setAddingRound(true)} style={{ width:'100%', padding:'10px', borderRadius:8, background:'rgba(255,255,255,.04)', border:'1px dashed rgba(255,255,255,.15)', color:'var(--text-dim)', fontSize:13, cursor:'pointer' }}>
+          + Ajouter un round
+        </button>
+      ) : (
+        <div style={{ paddingTop:12, borderTop:'1px solid rgba(255,255,255,.06)' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:10 }}>
+            <div>
+              <div className="label">Durée (min:sec)</div>
+              <input className="input" placeholder="5:00" value={durationStr} onChange={e => setDurationStr(e.target.value)} />
+            </div>
+            <div>
+              <div className="label">Résultat</div>
+              <div style={{ display:'flex', gap:4 }}>
+                {RESULTS_SIMPLE.map(r => (
+                  <button key={r.id} type="button" onClick={() => setResult(result === r.id ? null : r.id)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', cursor:'pointer', fontSize:13, fontWeight:700, background: result===r.id ? `${r.color}22` : 'rgba(255,255,255,.03)', color: result===r.id ? r.color : 'var(--text-dim)' }}>{r.label}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="label">Adversaire</div>
+          <div style={{ display:'flex', gap:4, marginBottom:8 }}>
+            {['solo','member','guest'].map(m => (
+              <button key={m} type="button" onClick={() => setOppMode(m)} style={{ flex:1, padding:'7px', borderRadius:7, border:'none', cursor:'pointer', fontSize:11, background: oppMode===m ? 'rgba(155,77,202,.2)' : 'rgba(255,255,255,.03)', color: oppMode===m ? 'var(--accent)' : 'var(--text-dim)' }}>
+                {m === 'solo' ? 'Solo' : m === 'member' ? 'Membre' : 'Invité'}
+              </button>
+            ))}
+          </div>
+          {oppMode === 'member' && (
+            <select className="input" value={oppId} onChange={e => setOppId(e.target.value)} style={{ marginBottom:8 }}>
+              <option value="">-- Choisir --</option>
+              {members.map(m => <option key={m.user_id} value={m.user_id}>{m.display_name} ({m.belt})</option>)}
+            </select>
+          )}
+          {oppMode === 'guest' && (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:8, marginBottom:8 }}>
+              <input className="input" placeholder="Nom de l'adversaire" value={guestName} onChange={e => setGuestName(e.target.value)} />
+              <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                {BELTS_SIMPLE.map(b => (
+                  <button key={b} type="button" onClick={() => setGuestBelt(b)} style={{ width:18, height:18, borderRadius:'50%', background:BELT_DOT[b], border: guestBelt===b ? '2px solid white' : '2px solid transparent', cursor:'pointer', padding:0 }} />
+                ))}
+              </div>
+            </div>
+          )}
+          {err && <div style={{ color:'#ef5350', fontSize:12, marginBottom:8 }}>⚠️ {err}</div>}
+          <div style={{ display:'flex', gap:8 }}>
+            <button className="btn btn-primary btn-small" onClick={handleAdd} disabled={saving} style={{ flex:2 }}>{saving ? '...' : 'Sauvegarder ce round'}</button>
+            <button onClick={() => setAddingRound(false)} style={{ flex:1, padding:'10px', borderRadius:8, background:'transparent', border:'1px solid var(--border)', color:'var(--text-dim)', fontSize:12, cursor:'pointer' }}>Annuler</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CheckInPage() {
   const { user, gym, profile } = useAuth();
   const [checkin, setCheckin] = useState(null);
@@ -207,6 +313,9 @@ export default function CheckInPage() {
   const [pastNote, setPastNote] = useState('');
   const [pastError, setPastError] = useState('');
   const [pastCurriculum, setPastCurriculum] = useState(null);
+  const [pastCreatedSession, setPastCreatedSession] = useState(null);
+  const [pastRounds, setPastRounds] = useState([]);
+  const [addingPastRound, setAddingPastRound] = useState(false);
   const [recent, setRecent] = useState([]);
   const [showRecent, setShowRecent] = useState(false);
   const [showPast, setShowPast] = useState(false);
@@ -236,16 +345,17 @@ export default function CheckInPage() {
       if (curr?.length) setMatchedCurr(curr);
     }
 
-    // Use gym_leaderboard — same view as GymPage, bypasses profile RLS
-    const { data: lb } = await supabase.from('gym_leaderboard').select('*').eq('gym_id',gym.id);
-    const { data: contacts } = await supabase.from('gym_contacts').select('*').eq('gym_id',gym.id);
-    const realMembers = (lb||[]).filter(m => m.user_id !== user.id);
-    const virtualMembers = (contacts||[]).map(c => ({
+    // Use gym_leaderboard + gym_contacts (virtual members added by owner)
+    const [{ data: lb }, { data: contacts }] = await Promise.all([
+      supabase.from('gym_leaderboard').select('*').eq('gym_id', gym.id),
+      supabase.from('gym_contacts').select('*').eq('gym_id', gym.id),
+    ]);
+    const realMembers = (lb || []).filter(m => m.user_id !== user.id);
+    const virtualMembers = (contacts || []).map(c => ({
       user_id: `contact_${c.id}`,
       display_name: c.display_name,
       belt: c.belt || 'white',
       stripes: c.stripes || 0,
-      avatar_url: null,
       is_contact: true,
     }));
     setMembers([...realMembers, ...virtualMembers]);
@@ -304,17 +414,9 @@ export default function CheckInPage() {
     const opp = roundOpponent;
     const updates = { ended_at: new Date().toISOString() };
     if (opp?.type==='member' && opp.memberId) {
-      const isContact = String(opp.memberId).startsWith('contact_');
-      if (isContact) {
-        // Virtual gym contact — save as name + belt only
-        updates.opponent_id = null;
-        updates.opponent_name = opp.memberName || null;
-        updates.opponent_belt = members.find(m=>m.user_id===opp.memberId)?.belt || null;
-      } else {
-        updates.opponent_id = opp.memberId;
-        updates.opponent_name = opp.memberName || null;
-        updates.opponent_belt = members.find(m=>m.user_id===opp.memberId)?.belt || null;
-      }
+      updates.opponent_id = opp.memberId;
+      updates.opponent_name = opp.memberName || null;
+      updates.opponent_belt = members.find(m=>m.user_id===opp.memberId)?.belt || null;
     } else if (opp?.type==='guest' && opp.guestName) {
       updates.opponent_name = opp.guestName;
       updates.opponent_belt = opp.guestBelt || null;
@@ -361,9 +463,43 @@ export default function CheckInPage() {
         const allTechs = pastCurriculum.flatMap(cls => (cls.curriculum_techniques||[]).map(t => ({ checkin_id:ins.id, user_id:user.id, gym_id:gym.id, name:t.name, category:t.category })));
         if (allTechs.length>0) await supabase.from('techniques').insert(allTechs);
       }
-      setShowPast(false); setPastDate(''); setPastNote(''); setPastCurriculum(null);
+      setShowPast(false);
+      setPastDate(''); setPastNote(''); setPastCurriculum(null);
+      setPastCreatedSession(ins);
+      setPastRounds([]);
     } catch(err) { setPastError(err.message||'Failed to save session'); }
     setBusy(false); load();
+  }
+
+  async function addRoundToPastSession(roundInfo) {
+    if (!pastCreatedSession) return;
+    const { durationStr, result, oppName, oppBelt, oppId } = roundInfo;
+    const parseSec = (s) => { const p = s.split(':'); if (p.length === 2) return parseInt(p[0])*60+parseInt(p[1]||0); return parseInt(s||0)*60; };
+    const duration_seconds = parseSec(durationStr);
+    const roundData = {
+      checkin_id: pastCreatedSession.id,
+      user_id: user.id,
+      gym_id: gym.id,
+      round_number: pastRounds.length + 1,
+      duration_seconds,
+      result: result || null,
+      started_at: pastCreatedSession.checked_in_at,
+      ended_at: pastCreatedSession.checked_out_at,
+    };
+    if (oppId && !String(oppId).startsWith('contact_')) {
+      roundData.opponent_id = oppId;
+      roundData.opponent_name = oppName || null;
+      roundData.opponent_belt = oppBelt || null;
+    } else if (oppName) {
+      roundData.opponent_name = oppName;
+      roundData.opponent_belt = oppBelt || null;
+    }
+    const { error } = await supabase.from('rounds').insert(roundData);
+    if (!error) {
+      setPastRounds(prev => [...prev, { ...roundData, _label: `Round ${pastRounds.length + 1}${oppName ? ' vs ' + oppName : ''}${result ? ' · ' + result : ''}` }]);
+      setAddingPastRound(false);
+    }
+    return error;
   }
 
   function toggleSelect(id) { setSelectedSessions(prev => { const n=new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; }); }
@@ -608,6 +744,18 @@ export default function CheckInPage() {
               {pastError && <div style={{ color:'#ff6b6b', fontSize:12, marginBottom:8, padding:'6px 10px', background:'rgba(255,100,100,.08)', borderRadius:6 }}>{pastError}</div>}
               <button className="btn btn-primary btn-small" type="submit" disabled={busy}>{busy?'Saving...':'Save'}</button>
             </form>
+          )}
+
+          {pastCreatedSession && !showPast && (
+            <PastSessionRoundsAdder
+              session={pastCreatedSession}
+              members={members}
+              rounds={pastRounds}
+              onAddRound={addRoundToPastSession}
+              addingRound={addingPastRound}
+              setAddingRound={setAddingPastRound}
+              onDone={() => { setPastCreatedSession(null); setPastRounds([]); }}
+            />
           )}
 
           {showRecent && recent.length>0 && (

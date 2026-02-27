@@ -379,50 +379,60 @@ function AddRoundForm({ session, members, onSave, onClose }) {
   const [result, setResult] = useState(null);
   const [events, setEvents] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [roundCount, setRoundCount] = useState(0);
 
   useEffect(() => {
-    supabase.from('rounds').select('round_number', { count: 'exact' }).eq('checkin_id', session.id)
+    supabase.from('rounds')
+      .select('id', { count: 'exact', head: true })
+      .eq('checkin_id', session.id)
       .then(({ count }) => setRoundCount(count || 0));
   }, [session.id]);
 
   async function handleSave() {
     setSaving(true);
-    const duration_seconds = parseDuration(durationStr);
-    const roundData = {
-      checkin_id: session.id,
-      user_id: user.id,
-      gym_id: gym.id,
-      round_number: roundCount + 1,
-      duration_seconds,
-      result: result || null,
-      // Use session date for started_at so the round appears in the right month's stats
-      started_at: session.checked_in_at || new Date().toISOString(),
-      ended_at: session.checked_out_at || new Date().toISOString(),
-    };
-    if (oppId && !oppId.startsWith('contact_')) {
-      roundData.opponent_id = oppId;
-      roundData.opponent_name = oppName || null;
-      roundData.opponent_belt = oppBelt || null;
-    } else if (oppName) {
-      roundData.opponent_name = oppName;
-      roundData.opponent_belt = oppBelt || null;
-    }
-    const { data: newRound } = await supabase.from('rounds').insert(roundData).select().single();
-    if (newRound && events.length > 0) {
-      await supabase.from('round_events').insert(events.map(e => ({
-        round_id: newRound.id,
+    setSaveError('');
+    try {
+      const duration_seconds = parseDuration(durationStr);
+      const roundData = {
         checkin_id: session.id,
         user_id: user.id,
         gym_id: gym.id,
-        event_type: e.event_type,
-        direction: e.direction,
-        technique: e.technique,
-        position: e.position || null,
-      })));
+        round_number: roundCount + 1,
+        duration_seconds,
+        result: result || null,
+        started_at: session.checked_in_at || new Date().toISOString(),
+        ended_at: session.checked_out_at || new Date().toISOString(),
+      };
+      if (oppId && !String(oppId).startsWith('contact_')) {
+        roundData.opponent_id = oppId;
+        roundData.opponent_name = oppName || null;
+        roundData.opponent_belt = oppBelt || null;
+      } else if (oppName) {
+        roundData.opponent_name = oppName;
+        roundData.opponent_belt = oppBelt || null;
+      }
+      const { data: newRound, error: roundErr } = await supabase.from('rounds').insert(roundData).select().single();
+      if (roundErr) throw new Error(roundErr.message);
+      if (newRound && events.length > 0) {
+        const { error: evErr } = await supabase.from('round_events').insert(events.map(e => ({
+          round_id: newRound.id,
+          checkin_id: session.id,
+          user_id: user.id,
+          gym_id: gym.id,
+          event_type: e.event_type,
+          direction: e.direction,
+          technique: e.technique,
+          position: e.position || null,
+        })));
+        if (evErr) throw new Error(evErr.message);
+      }
+      onSave();
+    } catch (err) {
+      setSaveError(err.message || 'Erreur lors de la sauvegarde');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    onSave();
   }
 
   return (
@@ -460,6 +470,11 @@ function AddRoundForm({ session, members, onSave, onClose }) {
         <label className="label" style={{ marginBottom: 8, display: 'block' }}>Événements</label>
         <EventEditor events={events} onChange={setEvents} />
       </div>
+      {saveError && (
+        <div style={{ marginBottom: 8, padding: '8px 12px', background: 'rgba(239,83,80,.12)', borderRadius: 8, fontSize: 12, color: '#ef5350' }}>
+          ⚠️ {saveError}
+        </div>
+      )}
       <button className="btn btn-primary btn-small" onClick={handleSave} disabled={saving}>{saving ? '...' : 'Ajouter ce round'}</button>
     </div>
   );
