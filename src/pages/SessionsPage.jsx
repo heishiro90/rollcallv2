@@ -22,12 +22,13 @@ const RESULTS = [
   { id: 'loss', label: 'Loss', color: '#ef5350' },
 ];
 const CATEGORIES = [
-  { id: 'takedown', label: 'Takedown', askPosition: false, techniques: ['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Inside Trip','Hip Throw','Shoulder Throw','Foot Sweep','Drop Throw','Guard Pull'] },
-  { id: 'submission', label: 'Submission', askPosition: true, techniques: ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock'] },
-  { id: 'sweep', label: 'Sweep', askPosition: true, techniques: ['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Pendulum','Tripod Sweep','Sickle Sweep','Elevator Sweep','Waiter Sweep'] },
+  { id: 'takedown', label: 'Takedown', techniques: ['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Hip Throw','Guard Pull'] },
+  { id: 'submission', label: 'Submission', techniques: ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Bow & Arrow','Heel Hook','Americana','Loop Choke','Cross Collar'] },
+  { id: 'sweep', label: 'Sweep', techniques: ['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Elevator Sweep','Waiter Sweep'] },
+  { id: 'pass', label: 'Pass', techniques: ['Knee Slice','Toreando','Over-Under','Stack Pass','Leg Drag','Smash Pass','Backstep'] },
+  { id: 'escape', label: 'Escape', techniques: ['Bridge & Roll','Hip Escape','Frame & Reguard','Granby Roll','Back Escape'] },
 ];
-const CAT_COLORS = { takedown: '#ffd54f', submission: '#e57373', sweep: '#64b5f6' };
-const POSITIONS = ['Mount','Back','Closed Guard','Open Guard','Half Guard','Side Control','Standing','Turtle','Leg Entangle'];
+const CAT_COLORS = { takedown: '#ffd54f', submission: '#e57373', sweep: '#64b5f6', pass: '#ffb74d', escape: '#81c784' };
 
 function fmt(sec) {
   if (!sec) return '0:00';
@@ -135,36 +136,39 @@ function InlineOpponentPicker({ members, oppName, oppBelt, oppId, onChange }) {
   );
 }
 
+const POSITIONS = ['Guard', 'Half Guard', 'Mount', 'Back', 'Side Control', 'Turtle', 'Standing'];
+
 // ── Round event editor ─────────────────────────────────────────────────
 function EventEditor({ events, onChange }) {
   const [direction, setDirection] = useState('offensive');
   const [cat, setCat] = useState('submission');
-  const [pendingTech, setPendingTech] = useState(null);
   const [customTech, setCustomTech] = useState('');
 
-  function tapTech(catObj, tech) {
-    if (catObj.askPosition) { setPendingTech({ catId: catObj.id, technique: tech }); }
-    else { onChange([...events, { event_type: catObj.id, direction, technique: tech, position: null }]); }
+  const needsPosition = cat === 'submission' || cat === 'sweep';
+
+  function addTech(tech, pos) {
+    onChange([...events, { event_type: cat, direction, technique: tech, position: pos || null }]);
   }
-  function confirmPosition(pos) {
-    if (!pendingTech) return;
-    onChange([...events, { event_type: pendingTech.catId, direction, technique: pendingTech.technique, position: pos }]);
-    setPendingTech(null);
+  function removeEvent(i) {
+    onChange(events.filter((_, j) => j !== i));
   }
-  function addCustom() {
+  function addCustom(pos) {
     if (!customTech.trim()) return;
-    const catObj = CATEGORIES.find(c => c.id === cat);
-    if (catObj?.askPosition) { setPendingTech({ catId: cat, technique: customTech.trim() }); setCustomTech(''); }
-    else { onChange([...events, { event_type: cat, direction, technique: customTech.trim(), position: null }]); setCustomTech(''); }
+    onChange([...events, { event_type: cat, direction, technique: customTech.trim(), position: pos || null }]);
+    setCustomTech('');
   }
-  function removeEvent(i) { onChange(events.filter((_, j) => j !== i)); }
 
   return (
     <div>
       {events.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
           {events.map((e, i) => (
-            <span key={i} onClick={() => removeEvent(i)} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '3px 9px', borderRadius: 14, fontSize: 11, cursor: 'pointer', fontWeight: 500, background: e.direction === 'offensive' ? 'rgba(102,187,106,.12)' : 'rgba(239,83,80,.12)', color: e.direction === 'offensive' ? '#66bb6a' : '#ef5350' }}>
+            <span key={i} onClick={() => removeEvent(i)} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 3, padding: '3px 9px', borderRadius: 14, fontSize: 11,
+              cursor: 'pointer', fontWeight: 500,
+              background: e.direction === 'offensive' ? 'rgba(102,187,106,.12)' : 'rgba(239,83,80,.12)',
+              color: e.direction === 'offensive' ? '#66bb6a' : '#ef5350',
+            }}>
               {e.direction === 'offensive' ? '✅' : '😤'} {e.technique}{e.position ? ` (${e.position})` : ''} ×
             </span>
           ))}
@@ -172,30 +176,66 @@ function EventEditor({ events, onChange }) {
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', marginBottom: 8 }}>
         {[{ d: 'offensive', l: '✅ Moi' }, { d: 'defensive', l: '😤 Eux' }].map(x => (
-          <button key={x.d} type="button" onClick={() => setDirection(x.d)} style={{ padding: '8px', border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer', background: direction === x.d ? (x.d === 'offensive' ? 'rgba(102,187,106,.15)' : 'rgba(239,83,80,.15)') : 'transparent', color: direction === x.d ? (x.d === 'offensive' ? '#66bb6a' : '#ef5350') : 'var(--text-muted)' }}>{x.l}</button>
+          <button key={x.d} type="button" onClick={() => setDirection(x.d)} style={{
+            padding: '8px', border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            background: direction === x.d ? (x.d === 'offensive' ? 'rgba(102,187,106,.15)' : 'rgba(239,83,80,.15)') : 'transparent',
+            color: direction === x.d ? (x.d === 'offensive' ? '#66bb6a' : '#ef5350') : 'var(--text-muted)',
+          }}>{x.l}</button>
         ))}
       </div>
-      {pendingTech ? (
-        <div className="card" style={{ marginBottom: 10, border: '1px solid var(--accent)', padding: 12 }}>
-          <div style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 8 }}>{pendingTech.technique} — depuis quelle position ?</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-            {POSITIONS.map(p => <button key={p} type="button" onClick={() => confirmPosition(p)} style={{ padding: '7px 14px', fontSize: 12, borderRadius: 16, cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc' }}>{p}</button>)}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
+        {CATEGORIES.map(c => (
+          <button key={c.id} type="button" onClick={() => setCat(c.id)} style={{
+            padding: '4px 8px', fontSize: 11, borderRadius: 6, border: 'none', cursor: 'pointer',
+            background: cat === c.id ? `${CAT_COLORS[c.id]}22` : 'rgba(255,255,255,.04)',
+            color: cat === c.id ? CAT_COLORS[c.id] : 'var(--text-dim)',
+          }}>{c.label}</button>
+        ))}
+      </div>
+
+      {needsPosition ? (
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Technique → puis choisis la position :</div>
+          {CATEGORIES.find(c => c.id === cat)?.techniques.map(t => (
+            <div key={t} style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 11, color: '#ccc', marginBottom: 4, fontWeight: 500 }}>{t}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                {POSITIONS.map(pos => (
+                  <button key={pos} type="button" onClick={() => addTech(t, pos)} style={{
+                    padding: '3px 8px', fontSize: 10, borderRadius: 10, cursor: 'pointer',
+                    background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#aaa',
+                  }}>{pos}</button>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+            <input className="input" placeholder="Autre technique..." value={customTech} onChange={e => setCustomTech(e.target.value)}
+              style={{ flex: 1, minWidth: 120, padding: '6px 10px', fontSize: 12 }} />
+            {POSITIONS.map(pos => (
+              <button key={pos} type="button" onClick={() => addCustom(pos)} style={{
+                padding: '6px 8px', fontSize: 10, borderRadius: 6, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#aaa', cursor: 'pointer',
+              }}>{pos}</button>
+            ))}
           </div>
-          <button type="button" onClick={() => setPendingTech(null)} style={{ marginTop: 8, background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer' }}>Annuler</button>
         </div>
       ) : (
-        <>
-          <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
-            {CATEGORIES.map(c => <button key={c.id} type="button" onClick={() => setCat(c.id)} style={{ padding: '4px 8px', fontSize: 11, borderRadius: 6, border: 'none', cursor: 'pointer', background: cat === c.id ? `${CAT_COLORS[c.id]}22` : 'rgba(255,255,255,.04)', color: cat === c.id ? CAT_COLORS[c.id] : 'var(--text-dim)' }}>{c.label}</button>)}
-          </div>
+        <div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-            {CATEGORIES.find(c => c.id === cat)?.techniques.map(t => <button key={t} type="button" onClick={() => tapTech(CATEGORIES.find(c => c.id === cat), t)} style={{ padding: '5px 10px', fontSize: 11, borderRadius: 14, cursor: 'pointer', background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: '#bbb' }}>{t}</button>)}
+            {CATEGORIES.find(c => c.id === cat)?.techniques.map(t => (
+              <button key={t} type="button" onClick={() => addTech(t, null)} style={{
+                padding: '5px 10px', fontSize: 11, borderRadius: 14, cursor: 'pointer',
+                background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: '#bbb',
+              }}>{t}</button>
+            ))}
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <input className="input" placeholder="Autre technique..." value={customTech} onChange={e => setCustomTech(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }} style={{ flex: 1, padding: '7px 10px', fontSize: 12 }} />
-            <button type="button" onClick={addCustom} style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+</button>
+            <input className="input" placeholder="Autre technique..." value={customTech} onChange={e => setCustomTech(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(null); } }}
+              style={{ flex: 1, padding: '7px 10px', fontSize: 12 }} />
+            <button type="button" onClick={() => addCustom(null)} style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+</button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -650,14 +690,6 @@ export default function SessionsPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [page, setPage] = useState(0);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [pastDate, setPastDate] = useState('');
-  const [pastStart, setPastStart] = useState('18:00');
-  const [pastEnd, setPastEnd] = useState('19:30');
-  const [pastType, setPastType] = useState('gi');
-  const [pastNote, setPastNote] = useState('');
-  const [pastError, setPastError] = useState('');
-  const [addingPast, setAddingPast] = useState(false);
   const PER_PAGE = 20;
 
   useEffect(() => { if (user && gym) load(); }, [user, gym]);
@@ -689,21 +721,6 @@ export default function SessionsPage() {
     setLoading(false);
   }
 
-  async function addPastSession() {
-    if (!pastDate) { setPastError('Choisis une date'); return; }
-    setAddingPast(true); setPastError('');
-    try {
-      const startDt = new Date(`${pastDate}T${pastStart}:00`);
-      const endDt = new Date(`${pastDate}T${pastEnd}:00`);
-      if (endDt <= startDt) throw new Error("L'heure de fin doit être après le début");
-      const { error } = await supabase.from('checkins').insert({ user_id: user.id, gym_id: gym.id, session_type: pastType, checked_in_at: startDt.toISOString(), checked_out_at: endDt.toISOString(), note: pastNote.trim() || null });
-      if (error) throw error;
-      setShowAddForm(false); setPastDate(''); setPastNote('');
-      load();
-    } catch (err) { setPastError(err.message || 'Erreur'); }
-    setAddingPast(false);
-  }
-
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>Chargement...</div>;
 
   if (selected) {
@@ -732,31 +749,10 @@ export default function SessionsPage() {
 
   return (
     <div className="container fade-in" style={{ paddingTop: 24, paddingBottom: 100 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-        <h1 style={{ fontFamily: 'var(--font-d)', fontSize: 24, fontWeight: 400 }}>Historique</h1>
-        <button onClick={() => { setShowAddForm(!showAddForm); setPastError(''); }} style={{ padding: '8px 14px', borderRadius: 10, border: '1px solid var(--border)', background: showAddForm ? 'rgba(123,45,142,.15)' : 'rgba(255,255,255,.04)', color: showAddForm ? 'var(--accent)' : 'var(--text-dim)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-          {showAddForm ? '✕ Annuler' : '+ Session passée'}
-        </button>
-      </div>
-      <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 16 }}>{sessions.length} session{sessions.length !== 1 ? 's' : ''}</p>
-
-      {showAddForm && (
-        <div className="card" style={{ marginBottom: 20, border: '1px solid rgba(123,45,142,.3)' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>Ajouter une session passée</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
-            <div><div className="label">Date</div><input className="input" type="date" value={pastDate} onChange={e => setPastDate(e.target.value)} /></div>
-            <div><div className="label">Début</div><input className="input" type="time" value={pastStart} onChange={e => setPastStart(e.target.value)} /></div>
-            <div><div className="label">Fin</div><input className="input" type="time" value={pastEnd} onChange={e => setPastEnd(e.target.value)} /></div>
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-            {SESSION_TYPES.map(t => <button key={t.id} type="button" onClick={() => setPastType(t.id)} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: pastType === t.id ? `${t.color}20` : 'rgba(255,255,255,.03)', color: pastType === t.id ? t.color : 'var(--text-dim)' }}>{t.label}</button>)}
-          </div>
-          <input className="input" placeholder="Note (optionnel)" value={pastNote} onChange={e => setPastNote(e.target.value)} style={{ marginBottom: 10 }} />
-          {pastError && <div style={{ color: '#ef5350', fontSize: 12, marginBottom: 8 }}>⚠️ {pastError}</div>}
-          <button className="btn btn-primary btn-small" onClick={addPastSession} disabled={addingPast}>{addingPast ? '...' : 'Sauvegarder la session'}</button>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 10, marginBottom: 0 }}>Clique ensuite sur la session pour ajouter des rounds.</p>
-        </div>
-      )}
+      <h1 style={{ fontFamily: 'var(--font-d)', fontSize: 24, fontWeight: 400, marginBottom: 4 }}>Historique</h1>
+      <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 24 }}>
+        {sessions.length} session{sessions.length !== 1 ? 's' : ''} au total
+      </p>
 
       {sessions.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)' }}>
