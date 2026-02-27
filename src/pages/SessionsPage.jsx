@@ -17,9 +17,9 @@ const ENERGY = [
 const BELTS = ['white', 'blue', 'purple', 'brown', 'black'];
 const BELT_COLORS = { white: '#e8e8e0', blue: '#1a5fb4', purple: '#7b2d8e', brown: '#8b5e3c', black: '#444' };
 const RESULTS = [
-  { id: 'win', label: 'Win', color: '#66bb6a' },
-  { id: 'draw', label: 'Draw', color: '#ffb74d' },
-  { id: 'loss', label: 'Loss', color: '#ef5350' },
+  { id: 'W', label: 'Win', color: '#66bb6a' },
+  { id: 'D', label: 'Draw', color: '#ffb74d' },
+  { id: 'L', label: 'Loss', color: '#ef5350' },
 ];
 const CATEGORIES = [
   { id: 'takedown', label: 'Takedown', techniques: ['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Hip Throw','Guard Pull'] },
