@@ -22,9 +22,9 @@ const RESULTS = [
   { id: 'loss', label: 'Loss', color: '#ef5350' },
 ];
 const CATEGORIES = [
-  { id: 'takedown', label: 'Takedown', techniques: ['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Hip Throw','Guard Pull'] },
-  { id: 'submission', label: 'Submission', techniques: ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Bow & Arrow','Heel Hook','Americana','Loop Choke','Cross Collar'] },
-  { id: 'sweep', label: 'Sweep', techniques: ['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Elevator Sweep','Waiter Sweep'] },
+  { id: 'takedown', label: 'Takedowns', color: '#ffd54f', techniques: ['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Inside Trip','Hip Throw','Shoulder Throw','Foot Sweep','Drop Throw','Guard Pull'] },
+  { id: 'submission', label: 'Submissions', color: '#e57373', askPosition: true, techniques: ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock'] },
+  { id: 'sweep', label: 'Sweeps', color: '#64b5f6', askPosition: true, techniques: ['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Pendulum','Tripod Sweep','Sickle Sweep','Elevator Sweep','Waiter Sweep'] },
 ];
 const CAT_COLORS = { takedown: '#ffd54f', submission: '#e57373', sweep: '#64b5f6' };
 
@@ -136,105 +136,88 @@ function InlineOpponentPicker({ members, oppName, oppBelt, oppId, onChange }) {
 
 const POSITIONS = ['Guard', 'Half Guard', 'Mount', 'Back', 'Side Control', 'Turtle', 'Standing'];
 
-// ── Round event editor ─────────────────────────────────────────────────
+// ── Round event editor — same UI as CheckIn ─────────────────────────────
 function EventEditor({ events, onChange }) {
   const [direction, setDirection] = useState('offensive');
-  const [cat, setCat] = useState('submission');
+  const [pendingSub, setPendingSub] = useState(null);
   const [customTech, setCustomTech] = useState('');
+  const [customCat, setCustomCat] = useState('submission');
 
-  const needsPosition = cat === 'submission' || cat === 'sweep';
-
-  function addTech(tech, pos) {
-    onChange([...events, { event_type: cat, direction, technique: tech, position: pos || null }]);
+  function tapTechnique(cat, tech) {
+    if (cat.askPosition) { setPendingSub({ catId: cat.id, technique: tech }); return; }
+    onChange([...events, { event_type: cat.id, direction, technique: tech, position: null }]);
   }
-  function removeEvent(i) {
-    onChange(events.filter((_, j) => j !== i));
+  function confirmPos(pos) {
+    onChange([...events, { event_type: pendingSub.catId, direction, technique: pendingSub.technique, position: pos }]);
+    setPendingSub(null);
   }
-  function addCustom(pos) {
+  function addCustom() {
     if (!customTech.trim()) return;
-    onChange([...events, { event_type: cat, direction, technique: customTech.trim(), position: pos || null }]);
+    onChange([...events, { event_type: customCat, direction, technique: customTech.trim(), position: null }]);
     setCustomTech('');
   }
 
   return (
     <div>
-      {events.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
-          {events.map((e, i) => (
-            <span key={i} onClick={() => removeEvent(i)} style={{
-              display: 'inline-flex', alignItems: 'center', gap: 3, padding: '3px 9px', borderRadius: 14, fontSize: 11,
-              cursor: 'pointer', fontWeight: 500,
-              background: e.direction === 'offensive' ? 'rgba(102,187,106,.12)' : 'rgba(239,83,80,.12)',
-              color: e.direction === 'offensive' ? '#66bb6a' : '#ef5350',
-            }}>
-              {e.direction === 'offensive' ? '✅' : '😤'} {e.technique}{e.position ? ` (${e.position})` : ''} ×
-            </span>
-          ))}
-        </div>
-      )}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border)', marginBottom: 8 }}>
-        {[{ d: 'offensive', l: '✅ Moi' }, { d: 'defensive', l: '😤 Eux' }].map(x => (
+      {/* I did / Done to me */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, borderRadius: 10, overflow: 'hidden', marginBottom: 12, border: '1px solid var(--border)' }}>
+        {[{ d: 'offensive', l: '✅ I did', c: '#66bb6a' }, { d: 'defensive', l: '😤 Done to me', c: '#ef5350' }].map(x => (
           <button key={x.d} type="button" onClick={() => setDirection(x.d)} style={{
-            padding: '8px', border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-            background: direction === x.d ? (x.d === 'offensive' ? 'rgba(102,187,106,.15)' : 'rgba(239,83,80,.15)') : 'transparent',
-            color: direction === x.d ? (x.d === 'offensive' ? '#66bb6a' : '#ef5350') : 'var(--text-muted)',
+            padding: '11px 0', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            background: direction === x.d ? `${x.c}18` : 'transparent',
+            color: direction === x.d ? x.c : 'var(--text-muted)',
           }}>{x.l}</button>
         ))}
       </div>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
-        {CATEGORIES.map(c => (
-          <button key={c.id} type="button" onClick={() => setCat(c.id)} style={{
-            padding: '4px 8px', fontSize: 11, borderRadius: 6, border: 'none', cursor: 'pointer',
-            background: cat === c.id ? `${CAT_COLORS[c.id]}22` : 'rgba(255,255,255,.04)',
-            color: cat === c.id ? CAT_COLORS[c.id] : 'var(--text-dim)',
-          }}>{c.label}</button>
-        ))}
-      </div>
 
-      {needsPosition ? (
-        <div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Technique → puis choisis la position :</div>
-          {CATEGORIES.find(c => c.id === cat)?.techniques.map(t => (
-            <div key={t} style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 11, color: '#ccc', marginBottom: 4, fontWeight: 500 }}>{t}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                {POSITIONS.map(pos => (
-                  <button key={pos} type="button" onClick={() => addTech(t, pos)} style={{
-                    padding: '3px 8px', fontSize: 10, borderRadius: 10, cursor: 'pointer',
-                    background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#aaa',
-                  }}>{pos}</button>
-                ))}
-              </div>
-            </div>
-          ))}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-            <input className="input" placeholder="Autre technique..." value={customTech} onChange={e => setCustomTech(e.target.value)}
-              style={{ flex: 1, minWidth: 120, padding: '6px 10px', fontSize: 12 }} />
-            {POSITIONS.map(pos => (
-              <button key={pos} type="button" onClick={() => addCustom(pos)} style={{
-                padding: '6px 8px', fontSize: 10, borderRadius: 6, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#aaa', cursor: 'pointer',
-              }}>{pos}</button>
+      {/* Position picker for submissions/sweeps */}
+      {pendingSub && (
+        <div className="card" style={{ marginBottom: 12, border: '1px solid var(--accent)', padding: 12 }}>
+          <div style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 8, fontWeight: 600 }}>{pendingSub.technique} — from which position?</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+            {POSITIONS.map(p => (
+              <button key={p} type="button" onClick={() => confirmPos(p)} style={{ padding: '7px 14px', fontSize: 12, borderRadius: 16, cursor: 'pointer', background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: '#ccc' }}>{p}</button>
             ))}
           </div>
-        </div>
-      ) : (
-        <div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-            {CATEGORIES.find(c => c.id === cat)?.techniques.map(t => (
-              <button key={t} type="button" onClick={() => addTech(t, null)} style={{
-                padding: '5px 10px', fontSize: 11, borderRadius: 14, cursor: 'pointer',
-                background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: '#bbb',
-              }}>{t}</button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input className="input" placeholder="Autre technique..." value={customTech} onChange={e => setCustomTech(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(null); } }}
-              style={{ flex: 1, padding: '7px 10px', fontSize: 12 }} />
-            <button type="button" onClick={() => addCustom(null)} style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+</button>
-          </div>
+          <button type="button" onClick={() => { onChange([...events, { event_type: pendingSub.catId, direction, technique: pendingSub.technique, position: null }]); setPendingSub(null); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer' }}>Skip position</button>
         </div>
       )}
+
+      {/* Logged events */}
+      {events.length > 0 && (
+        <div style={{ marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+          {events.map((e, i) => (
+            <span key={i} onClick={() => onChange(events.filter((_, j) => j !== i))} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 3, padding: '4px 10px', borderRadius: 16, fontSize: 11, cursor: 'pointer', fontWeight: 500,
+              background: e.direction === 'offensive' ? 'rgba(102,187,106,.12)' : 'rgba(239,83,80,.12)',
+              color: e.direction === 'offensive' ? '#66bb6a' : '#ef5350',
+            }}>{e.direction === 'offensive' ? '✅' : '😤'} {e.technique}{e.position ? ` (${e.position})` : ''} ×</span>
+          ))}
+        </div>
+      )}
+
+      {/* Category sections */}
+      {CATEGORIES.map(cat => (
+        <div key={cat.id} style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: cat.color, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 5 }}>{cat.label}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {cat.techniques.map(t => (
+              <button key={t} type="button" onClick={() => tapTechnique(cat, t)} style={{ padding: '6px 12px', fontSize: 12, borderRadius: 16, cursor: 'pointer', background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)', color: '#bbb' }}>{t}</button>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {/* Custom */}
+      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+        <select value={customCat} onChange={e => setCustomCat(e.target.value)} style={{ padding: '7px 8px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 11 }}>
+          {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+        </select>
+        <input className="input" placeholder="Other..." value={customTech} onChange={e => setCustomTech(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
+          style={{ flex: 1, padding: '7px 10px', fontSize: 12 }} />
+        <button type="button" onClick={addCustom} style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,.04)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+</button>
+      </div>
     </div>
   );
 }
