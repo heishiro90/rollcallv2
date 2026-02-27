@@ -172,7 +172,7 @@ function InjuryCheckModal({ injuries, onDone }) {
 
 const BELTS_SIMPLE = ['white','blue','purple','brown','black'];
 const BELT_DOT = { white:'#e0e0d0', blue:'#1a5fb4', purple:'#7b2d8e', brown:'#8b5e3c', black:'#1a1a1a' };
-const RESULTS_SIMPLE = [{ id:'W', label:'V', color:'#66bb6a' }, { id:'D', label:'N', color:'#ffb74d' }, { id:'L', label:'D', color:'#ef5350' }];
+const RESULTS_SIMPLE = [{ id:'win', label:'V', color:'#66bb6a' }, { id:'draw', label:'N', color:'#ffb74d' }, { id:'loss', label:'D', color:'#ef5350' }];
 
 function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRound, setAddingRound, onDone }) {
   const [durationStr, setDurationStr] = useState('5:00');
