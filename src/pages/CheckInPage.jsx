@@ -238,7 +238,17 @@ export default function CheckInPage() {
 
     // Use gym_leaderboard — same view as GymPage, bypasses profile RLS
     const { data: lb } = await supabase.from('gym_leaderboard').select('*').eq('gym_id',gym.id);
-    setMembers((lb||[]).filter(m => m.user_id !== user.id));
+    const { data: contacts } = await supabase.from('gym_contacts').select('*').eq('gym_id',gym.id);
+    const realMembers = (lb||[]).filter(m => m.user_id !== user.id);
+    const virtualMembers = (contacts||[]).map(c => ({
+      user_id: `contact_${c.id}`,
+      display_name: c.display_name,
+      belt: c.belt || 'white',
+      stripes: c.stripes || 0,
+      avatar_url: null,
+      is_contact: true,
+    }));
+    setMembers([...realMembers, ...virtualMembers]);
 
     const { data: rec } = await supabase.from('checkins').select('*').eq('user_id',user.id).eq('gym_id',gym.id).not('checked_out_at','is',null).order('checked_in_at',{ascending:false}).limit(20);
     setRecent(rec || []);
@@ -294,9 +304,17 @@ export default function CheckInPage() {
     const opp = roundOpponent;
     const updates = { ended_at: new Date().toISOString() };
     if (opp?.type==='member' && opp.memberId) {
-      updates.opponent_id = opp.memberId;
-      updates.opponent_name = opp.memberName || null;
-      updates.opponent_belt = members.find(m=>m.user_id===opp.memberId)?.belt || null;
+      const isContact = String(opp.memberId).startsWith('contact_');
+      if (isContact) {
+        // Virtual gym contact — save as name + belt only
+        updates.opponent_id = null;
+        updates.opponent_name = opp.memberName || null;
+        updates.opponent_belt = members.find(m=>m.user_id===opp.memberId)?.belt || null;
+      } else {
+        updates.opponent_id = opp.memberId;
+        updates.opponent_name = opp.memberName || null;
+        updates.opponent_belt = members.find(m=>m.user_id===opp.memberId)?.belt || null;
+      }
     } else if (opp?.type==='guest' && opp.guestName) {
       updates.opponent_name = opp.guestName;
       updates.opponent_belt = opp.guestBelt || null;

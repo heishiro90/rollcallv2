@@ -5,26 +5,24 @@ import { BeltSVG } from '../components/Belt';
 import WeightChart from '../components/WeightChart';
 
 const BELTS = ['white', 'blue', 'purple', 'brown', 'black'];
-const AVATARS = ['🥋', '🦁', '🐍', '🦅', '🐙', '🦈', '🐺', '🦍', '🔥', '💀', '👊', '⚡'];
 const GOAL_TYPES = [
-  { id: 'manual', label: 'Manual' }, { id: 'mat_hours', label: 'Mat Hours' },
+  { id: 'manual', label: 'Manuel' }, { id: 'mat_hours', label: 'Heures de mat' },
   { id: 'sessions', label: 'Sessions' }, { id: 'rounds', label: 'Rounds' },
-  { id: 'submissions', label: 'Submissions' }, { id: 'techniques', label: 'Techniques' },
+  { id: 'submissions', label: 'Soumissions' }, { id: 'techniques', label: 'Techniques' },
 ];
-const PERIODS = [{ id: 'week', label: 'Week' }, { id: 'month', label: 'Month' }, { id: 'semester', label: 'Semester' }, { id: 'year', label: 'Year' }, { id: 'all', label: 'All Time' }];
+const PERIODS = [{ id: 'week', label: 'Semaine' }, { id: 'month', label: 'Mois' }, { id: 'semester', label: 'Semestre' }, { id: 'year', label: 'Année' }, { id: 'all', label: 'Tout' }];
+const ENERGY = [
+  { val: 1, emoji: '😵' }, { val: 2, emoji: '😮‍💨' }, { val: 3, emoji: '😐' }, { val: 4, emoji: '😊' }, { val: 5, emoji: '🔥' },
+];
 
 export default function ProfilePage() {
   const { user, profile, gym, gymRole, signOut, refreshData } = useAuth();
   const [dn, setDn] = useState(profile?.display_name || '');
   const [belt, setBelt] = useState(profile?.belt || 'white');
   const [stripes, setStripes] = useState(profile?.stripes || 0);
-  const [emoji, setEmoji] = useState(profile?.avatar_emoji || '🥋');
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
   const [age, setAge] = useState(profile?.age || '');
   const [weightKg, setWeightKg] = useState(profile?.weight_kg || '');
-  const [instagram, setInstagram] = useState(profile?.instagram || '');
-  const [youtube, setYoutube] = useState(profile?.youtube || '');
-  const [tiktok, setTiktok] = useState(profile?.tiktok || '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [goals, setGoals] = useState([]);
@@ -66,7 +64,7 @@ export default function ProfilePage() {
     if (isOwner) {
       const [{ data: b }, { data: m }] = await Promise.all([
         supabase.from('badges').select('*').eq('gym_id', gym.id),
-        supabase.from('gym_members').select('user_id, role, profiles(display_name, avatar_emoji)').eq('gym_id', gym.id),
+        supabase.from('gym_members').select('user_id, role, profiles(display_name)').eq('gym_id', gym.id),
       ]);
       setBadges(b || []); setMembers(m || []);
     }
@@ -78,13 +76,9 @@ export default function ProfilePage() {
       display_name: dn,
       belt,
       stripes: parseInt(stripes),
-      avatar_emoji: emoji,
       avatar_url: avatarUrl.trim() || null,
       age: age ? parseInt(age) : null,
       weight_kg: weightKg ? parseFloat(weightKg) : null,
-      instagram: instagram.trim() || null,
-      youtube: youtube.trim() || null,
-      tiktok: tiktok.trim() || null,
     }).eq('id', user.id);
     await refreshData(); setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2000);
   }
@@ -122,92 +116,86 @@ export default function ProfilePage() {
   async function awardBadge(e) { e.preventDefault(); if (!awardB || !awardU) return; await supabase.from('user_badges').insert({ badge_id: awardB, user_id: awardU, gym_id: gym.id, awarded_by: user.id }); setAwardB(''); setAwardU(''); }
 
   const avatarPreview = avatarUrl.trim()
-    ? <img src={avatarUrl} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }} />
-    : <span style={{ fontSize: 36 }}>{emoji}</span>;
+    ? <img src={avatarUrl} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }} onError={e => e.target.style.display = 'none'} />
+    : <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#222', border: '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: 'var(--text-dim)' }}>{dn?.charAt(0)?.toUpperCase() || '?'}</div>;
 
   return (
     <div className="container" style={{ paddingTop: 24, paddingBottom: 100 }}>
-      <h2 style={{ fontFamily: 'var(--font-d)', fontSize: 22, fontWeight: 400, marginBottom: 20 }}>Settings</h2>
+      <h2 style={{ fontFamily: 'var(--font-d)', fontSize: 22, fontWeight: 400, marginBottom: 20 }}>Réglages</h2>
 
       {/* Profile */}
       <form onSubmit={saveProfile} className="card" style={{ marginBottom: 16 }}>
-        <div className="section-title">Profile</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
+        <div className="section-title">Profil</div>
+
+        {/* Avatar + Name row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
           {avatarPreview}
-          <div style={{ flex: 1 }}><label className="label">Name</label><input className="input" value={dn} onChange={e => setDn(e.target.value)} required /></div>
-        </div>
-        <div style={{ marginBottom: 10 }}>
-          <label className="label">Avatar Emoji</label>
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-            {AVATARS.map(e => (
-              <button key={e} type="button" onClick={() => { setEmoji(e); setAvatarUrl(''); }} style={{ width: 32, height: 32, fontSize: 16, background: emoji === e && !avatarUrl ? 'var(--accent)' : 'rgba(255,255,255,.03)', border: emoji === e && !avatarUrl ? '1px solid var(--accent)' : '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{e}</button>
-            ))}
+          <div style={{ flex: 1 }}>
+            <label className="label">Nom</label>
+            <input className="input" value={dn} onChange={e => setDn(e.target.value)} required />
           </div>
         </div>
-        <div style={{ marginBottom: 10 }}>
-          <label className="label">Or custom image URL</label>
+
+        {/* Photo URL */}
+        <div style={{ marginBottom: 12 }}>
+          <label className="label">Photo de profil (URL)</label>
           <input className="input" placeholder="https://..." value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} style={{ fontSize: 12 }} />
-          <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Paste a link to your photo. Overrides emoji if set.</p>
+          <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>Collez le lien direct vers votre photo.</p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-          <div><label className="label">Belt</label><select className="input" value={belt} onChange={e => setBelt(e.target.value)}>{BELTS.map(b => <option key={b} value={b}>{b[0].toUpperCase() + b.slice(1)}</option>)}</select></div>
-          <div><label className="label">Stripes</label><select className="input" value={stripes} onChange={e => setStripes(e.target.value)}>{[0,1,2,3,4].map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-        </div>
-        <div style={{ marginBottom: 10 }}><BeltSVG belt={belt} stripes={parseInt(stripes)} width={140} height={28} /></div>
 
-        {/* Age & Body weight */}
+        {/* Belt + Stripes */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
           <div>
-            <label className="label">Age</label>
-            <input className="input" type="number" min="1" max="100" placeholder="e.g. 28" value={age} onChange={e => setAge(e.target.value)} />
+            <label className="label">Ceinture</label>
+            <select className="input" value={belt} onChange={e => setBelt(e.target.value)}>
+              {BELTS.map(b => <option key={b} value={b}>{b.charAt(0).toUpperCase() + b.slice(1)}</option>)}
+            </select>
           </div>
           <div>
-            <label className="label">Body weight (kg)</label>
-            <input className="input" type="number" min="30" max="200" step="0.5" placeholder="e.g. 80.5" value={weightKg} onChange={e => setWeightKg(e.target.value)} />
+            <label className="label">Galons</label>
+            <select className="input" value={stripes} onChange={e => setStripes(e.target.value)}>
+              {[0, 1, 2, 3, 4].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <BeltSVG belt={belt} stripes={parseInt(stripes)} width={140} height={28} />
+        </div>
+
+        {/* Age & Weight */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+          <div>
+            <label className="label">Âge</label>
+            <input className="input" type="number" min="1" max="100" placeholder="ex. 28" value={age} onChange={e => setAge(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Poids de corps (kg)</label>
+            <input className="input" type="number" min="30" max="200" step="0.5" placeholder="ex. 80.5" value={weightKg} onChange={e => setWeightKg(e.target.value)} />
           </div>
         </div>
 
-        {/* Social media */}
-        <div style={{ marginBottom: 10 }}>
-          <label className="label">Social Media</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 16, width: 22, textAlign: 'center', flexShrink: 0 }}>📷</span>
-              <input className="input" placeholder="Instagram (without @)" value={instagram} onChange={e => setInstagram(e.target.value)} style={{ flex: 1 }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 16, width: 22, textAlign: 'center', flexShrink: 0 }}>▶️</span>
-              <input className="input" placeholder="YouTube handle or URL" value={youtube} onChange={e => setYoutube(e.target.value)} style={{ flex: 1 }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 16, width: 22, textAlign: 'center', flexShrink: 0 }}>🎵</span>
-              <input className="input" placeholder="TikTok (without @)" value={tiktok} onChange={e => setTiktok(e.target.value)} style={{ flex: 1 }} />
-            </div>
-          </div>
-        </div>
-
-        <button className="btn btn-primary" type="submit" disabled={saving}>{saved ? 'Saved ✓' : saving ? '...' : 'Save'}</button>
+        <button className="btn btn-primary" type="submit" disabled={saving}>{saved ? 'Sauvegardé ✓' : saving ? '...' : 'Sauvegarder'}</button>
       </form>
 
       {/* Weight */}
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="section-title">Weight</div>
+        <div className="section-title">Poids</div>
         <WeightChart data={weights} goal={weightGoal} />
         <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-          <input className="input" type="number" step="0.1" placeholder="Today's weight (kg)" value={wKg} onChange={e => setWKg(e.target.value)} style={{ flex: 1 }} />
+          <input className="input" type="number" step="0.1" placeholder="Poids aujourd'hui (kg)" value={wKg} onChange={e => setWKg(e.target.value)} style={{ flex: 1 }} />
           <button className="btn btn-secondary btn-small" onClick={addWeight} disabled={!wKg}>Log</button>
         </div>
         <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
           {weightGoal ? (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 12, color: '#64b5f6' }}>Goal: {weightGoal.target_kg}kg{weightGoal.target_date ? ` by ${weightGoal.target_date}` : ''}</span>
-              <button onClick={removeWeightGoal} style={{ background: 'none', border: 'none', color: '#ef5350', cursor: 'pointer', fontSize: 11 }}>Remove</button>
+              <span style={{ fontSize: 12, color: '#64b5f6' }}>Objectif : {weightGoal.target_kg}kg{weightGoal.target_date ? ` avant le ${weightGoal.target_date}` : ''}</span>
+              <button onClick={removeWeightGoal} style={{ background: 'none', border: 'none', color: '#ef5350', cursor: 'pointer', fontSize: 11 }}>Retirer</button>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 6 }}>
-              <input className="input" type="number" step="0.1" placeholder="Target kg" value={wgKg} onChange={e => setWgKg(e.target.value)} style={{ width: 90 }} />
-              <input className="input" type="date" placeholder="By date" value={wgDate} onChange={e => setWgDate(e.target.value)} style={{ flex: 1 }} />
-              <button className="btn btn-secondary btn-small" onClick={setWeightGoalFn} disabled={!wgKg}>Set Goal</button>
+              <input className="input" type="number" step="0.1" placeholder="Objectif kg" value={wgKg} onChange={e => setWgKg(e.target.value)} style={{ width: 90 }} />
+              <input className="input" type="date" value={wgDate} onChange={e => setWgDate(e.target.value)} style={{ flex: 1 }} />
+              <button className="btn btn-secondary btn-small" onClick={setWeightGoalFn} disabled={!wgKg}>Définir</button>
             </div>
           )}
         </div>
@@ -215,7 +203,7 @@ export default function ProfilePage() {
 
       {/* Goals */}
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="section-title">Goals</div>
+        <div className="section-title">Objectifs</div>
         {goals.map(g => (
           <div key={g.id} style={{ marginBottom: 8, padding: '8px 10px', background: 'rgba(255,255,255,.02)', borderRadius: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
@@ -231,21 +219,23 @@ export default function ProfilePage() {
                 <span style={{ fontSize: 11, color: '#ce93d8', fontWeight: 600, minWidth: 30 }}>{g.progress}%</span>
               </div>
             )}
-            {g.goal_type !== 'manual' && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Auto-tracked · Target: {g.target_value}</div>}
+            {g.goal_type !== 'manual' && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Suivi auto · Objectif : {g.target_value}</div>}
           </div>
         ))}
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8, marginTop: 6 }}>
-          <div style={{ display: 'flex', gap: 5, marginBottom: 6, flexWrap: 'wrap' }}>{GOAL_TYPES.map(t => <button key={t.id} type="button" onClick={() => setGType(t.id)} style={{ padding: '4px 8px', fontSize: 10, borderRadius: 6, border: 'none', cursor: 'pointer', background: gType === t.id ? 'var(--accent)' : 'rgba(255,255,255,.04)', color: gType === t.id ? '#fff' : 'var(--text-dim)' }}>{t.label}</button>)}</div>
+          <div style={{ display: 'flex', gap: 5, marginBottom: 6, flexWrap: 'wrap' }}>
+            {GOAL_TYPES.map(t => <button key={t.id} type="button" onClick={() => setGType(t.id)} style={{ padding: '4px 8px', fontSize: 10, borderRadius: 6, border: 'none', cursor: 'pointer', background: gType === t.id ? 'var(--accent)' : 'rgba(255,255,255,.04)', color: gType === t.id ? '#fff' : 'var(--text-dim)' }}>{t.label}</button>)}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <input className="input" placeholder={gType === 'manual' ? 'Goal title' : `e.g. ${gType === 'mat_hours' ? '100 hours' : '50 sessions'}...`} value={gTitle} onChange={e => setGTitle(e.target.value)} />
+            <input className="input" placeholder={gType === 'manual' ? 'Titre de l\'objectif' : `ex. ${gType === 'mat_hours' ? '100 heures' : '50 sessions'}...`} value={gTitle} onChange={e => setGTitle(e.target.value)} />
             {gType !== 'manual' && (
               <div style={{ display: 'flex', gap: 6 }}>
-                <input className="input" type="number" placeholder="Target" value={gTarget} onChange={e => setGTarget(e.target.value)} style={{ width: 70 }} />
+                <input className="input" type="number" placeholder="Cible" value={gTarget} onChange={e => setGTarget(e.target.value)} style={{ width: 70 }} />
                 <select className="input" value={gPeriod} onChange={e => setGPeriod(e.target.value)} style={{ flex: 1 }}>{PERIODS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}</select>
                 {gType === 'submissions' && <input className="input" placeholder="Armbar..." value={gTechFilter} onChange={e => setGTechFilter(e.target.value)} style={{ flex: 1 }} />}
               </div>
             )}
-            <button className="btn btn-secondary btn-small" onClick={addGoal}>+ Add Goal</button>
+            <button className="btn btn-secondary btn-small" onClick={addGoal}>+ Ajouter objectif</button>
           </div>
         </div>
       </div>
@@ -253,12 +243,12 @@ export default function ProfilePage() {
       {/* Injuries */}
       {injuries.length > 0 && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <div className="section-title" style={{ color: '#ef5350' }}>Active Injuries</div>
+          <div className="section-title" style={{ color: '#ef5350' }}>Blessures actives</div>
           {injuries.map(inj => (
             <div key={inj.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
               <span style={{ fontSize: 13, color: '#ddd' }}>🩹 {inj.body_part} — {inj.injury_type} <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>({inj.severity})</span></span>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => resolveInjury(inj.id)} style={{ background: 'none', border: 'none', color: '#66bb6a', cursor: 'pointer', fontSize: 11 }}>Healed ✓</button>
+                <button onClick={() => resolveInjury(inj.id)} style={{ background: 'none', border: 'none', color: '#66bb6a', cursor: 'pointer', fontSize: 11 }}>Guéri ✓</button>
                 <button onClick={() => deleteInjury(inj.id)} style={{ background: 'none', border: 'none', color: '#ef5350', cursor: 'pointer', fontSize: 11 }}>×</button>
               </div>
             </div>
@@ -268,15 +258,20 @@ export default function ProfilePage() {
 
       {/* Belt History */}
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="section-title">Belt History</div>
+        <div className="section-title">Historique ceintures</div>
         {beltHist.map(b => (
           <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><BeltSVG belt={b.belt} stripes={b.stripes || 0} width={60} height={12} /><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{b.promoted_at}</span></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <BeltSVG belt={b.belt} stripes={b.stripes || 0} width={60} height={12} />
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{b.promoted_at}</span>
+            </div>
             <button onClick={() => deleteBeltHistory(b.id)} style={{ background: 'none', border: 'none', color: '#ef5350', cursor: 'pointer', fontSize: 11 }}>×</button>
           </div>
         ))}
         <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-          <select className="input" value={bhBelt} onChange={e => setBhBelt(e.target.value)} style={{ flex: 1 }}>{BELTS.map(b => <option key={b} value={b}>{b[0].toUpperCase() + b.slice(1)}</option>)}</select>
+          <select className="input" value={bhBelt} onChange={e => setBhBelt(e.target.value)} style={{ flex: 1 }}>
+            {BELTS.map(b => <option key={b} value={b}>{b.charAt(0).toUpperCase() + b.slice(1)}</option>)}
+          </select>
           <input className="input" type="date" value={bhDate} onChange={e => setBhDate(e.target.value)} style={{ flex: 1 }} required />
           <button className="btn btn-secondary btn-small" onClick={addBeltHistory}>+</button>
         </div>
@@ -285,22 +280,33 @@ export default function ProfilePage() {
       {/* Gym Admin */}
       {isOwner && (
         <>
-          <div style={{ fontSize: 11, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700, margin: '12px 0' }}>Gym Admin</div>
+          <div style={{ fontSize: 11, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 2, fontWeight: 700, margin: '12px 0' }}>Admin Gym</div>
           <form onSubmit={createBadge} className="card" style={{ marginBottom: 12 }}>
-            <div className="section-title">Create Badge</div>
-            <div style={{ display: 'flex', gap: 6 }}><input className="input" placeholder="Badge name" value={newBadge} onChange={e => setNewBadge(e.target.value)} style={{ flex: 1 }} required /><input className="input" value={newBadgeE} onChange={e => setNewBadgeE(e.target.value)} style={{ width: 44, textAlign: 'center', fontSize: 16 }} /><button className="btn btn-secondary btn-small" type="submit">+</button></div>
+            <div className="section-title">Créer un badge</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input className="input" placeholder="Nom du badge" value={newBadge} onChange={e => setNewBadge(e.target.value)} style={{ flex: 1 }} required />
+              <input className="input" value={newBadgeE} onChange={e => setNewBadgeE(e.target.value)} style={{ width: 44, textAlign: 'center', fontSize: 16 }} />
+              <button className="btn btn-secondary btn-small" type="submit">+</button>
+            </div>
           </form>
           {badges.length > 0 && members.length > 0 && (
             <form onSubmit={awardBadge} className="card" style={{ marginBottom: 12 }}>
-              <div className="section-title">Award Badge</div>
-              <select className="input" value={awardB} onChange={e => setAwardB(e.target.value)} style={{ marginBottom: 6 }} required><option value="">Badge...</option>{badges.map(b => <option key={b.id} value={b.id}>{b.emoji} {b.name}</option>)}</select>
-              <select className="input" value={awardU} onChange={e => setAwardU(e.target.value)} style={{ marginBottom: 6 }} required><option value="">Member...</option>{members.map(m => <option key={m.user_id} value={m.user_id}>{m.profiles?.avatar_emoji} {m.profiles?.display_name}</option>)}</select>
-              <button className="btn btn-secondary btn-small" type="submit">Award</button>
+              <div className="section-title">Attribuer un badge</div>
+              <select className="input" value={awardB} onChange={e => setAwardB(e.target.value)} style={{ marginBottom: 6 }} required>
+                <option value="">Badge...</option>
+                {badges.map(b => <option key={b.id} value={b.id}>{b.emoji} {b.name}</option>)}
+              </select>
+              <select className="input" value={awardU} onChange={e => setAwardU(e.target.value)} style={{ marginBottom: 6 }} required>
+                <option value="">Membre...</option>
+                {members.map(m => <option key={m.user_id} value={m.user_id}>{m.profiles?.display_name}</option>)}
+              </select>
+              <button className="btn btn-secondary btn-small" type="submit">Attribuer</button>
             </form>
           )}
         </>
       )}
-      <button className="btn btn-danger" onClick={signOut} style={{ marginTop: 8 }}>Sign Out</button>
+
+      <button className="btn btn-danger" onClick={signOut} style={{ marginTop: 8 }}>Déconnexion</button>
     </div>
   );
 }
