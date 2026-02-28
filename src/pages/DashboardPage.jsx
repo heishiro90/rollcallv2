@@ -28,6 +28,253 @@ function getPeriodStart(period) {
   return new Date(0);
 }
 
+
+// ─── WEIGHT CATEGORIES (IBJJF Men) ───────────────────────────────────────────
+const WEIGHT_CATS = [
+  { id: 'rooster',     label: 'Rooster',         max: 57.5 },
+  { id: 'light_feather', label: 'Light Feather (Pluma)', max: 64 },
+  { id: 'feather',     label: 'Feather (Pena)',   max: 70 },
+  { id: 'light',       label: 'Light (Leve)',     max: 76 },
+  { id: 'middle',      label: 'Middle (Médio)',   max: 82.3 },
+  { id: 'medium_heavy',label: 'Medium Heavy',     max: 88.3 },
+  { id: 'heavy',       label: 'Heavy (Pesado)',   max: 94.3 },
+  { id: 'super_heavy', label: 'Super Heavy',      max: 100.5 },
+  { id: 'ultra_heavy', label: 'Ultra Heavy',      max: Infinity },
+];
+const FEDERATIONS = ['IBJJF','UAEJJF','NAGA','Grappling Industries','CBJJ','No-Gi Worlds','Local','Autre'];
+const MEDAL_EMOJI = { gold: '🥇', silver: '🥈', bronze: '🥉', fourth: '4th', none: '—' };
+const FINISH_TYPES = ['Points','Advantage','Submission','Referee Decision','DQ','No contest'];
+
+function getWeightCat(kg) {
+  if (!kg) return null;
+  return WEIGHT_CATS.find(w => kg <= w.max) || WEIGHT_CATS[WEIGHT_CATS.length - 1];
+}
+
+function CompetitionTab({ competitions, userId, profile, onRefresh }) {
+  const { gym } = useAuth();
+  const [showForm, setShowForm] = useState(false);
+  const [expanded, setExpanded] = useState(null);
+  const [showMatchForm, setShowMatchForm] = useState(null); // comp_id
+  const [saving, setSaving] = useState(false);
+
+  // Form state — competition
+  const suggestedCat = getWeightCat(profile?.weight_kg);
+  const [cName, setCName] = useState('');
+  const [cDate, setCDate] = useState(new Date().toISOString().split('T')[0]);
+  const [cFed, setCFed] = useState('IBJJF');
+  const [cBelt, setCBelt] = useState(profile?.belt || 'white');
+  const [cWeightCat, setCWeightCat] = useState(suggestedCat?.id || 'middle');
+  const [cAbsolute, setCAbsolute] = useState(false);
+  const [cMedal, setCMedal] = useState('none');
+
+  // Form state — match
+  const [mOpp, setMOpp] = useState('');
+  const [mResult, setMResult] = useState('win');
+  const [mFinish, setMFinish] = useState('Points');
+  const [mNote, setMNote] = useState('');
+
+  // Stats
+  const golds   = competitions.filter(c => c.medal === 'gold').length;
+  const silvers  = competitions.filter(c => c.medal === 'silver').length;
+  const bronzes  = competitions.filter(c => c.medal === 'bronze').length;
+  const allMatches = competitions.flatMap(c => c.competition_matches || []);
+  const wins   = allMatches.filter(m => m.result === 'win').length;
+  const losses = allMatches.filter(m => m.result === 'loss').length;
+
+  async function saveComp() {
+    if (!cName.trim()) return;
+    setSaving(true);
+    await supabase.from('competitions').insert({
+      user_id: userId, gym_id: gym?.id,
+      name: cName.trim(), comp_date: cDate, federation: cFed,
+      belt: cBelt, weight_category: cWeightCat, is_absolute: cAbsolute, medal: cMedal,
+    });
+    setSaving(false);
+    setShowForm(false);
+    setCName(''); setCMedal('none'); setCAbsolute(false);
+    onRefresh();
+  }
+
+  async function saveMatch(compId) {
+    if (!mOpp.trim()) return;
+    setSaving(true);
+    await supabase.from('competition_matches').insert({
+      competition_id: compId, user_id: userId,
+      opponent_name: mOpp.trim(), result: mResult,
+      finish_type: mFinish, note: mNote.trim() || null,
+    });
+    setSaving(false);
+    setShowMatchForm(null);
+    setMOpp(''); setMResult('win'); setMFinish('Points'); setMNote('');
+    onRefresh();
+  }
+
+  async function deleteComp(id) {
+    if (!confirm('Supprimer cette compétition ?')) return;
+    await supabase.from('competitions').delete().eq('id', id);
+    onRefresh();
+  }
+
+  return (
+    <div className="wide-container fade-in">
+      {/* Stats row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
+        {[
+          { l: 'Compétitions', v: competitions.length, c: '#f0ece2' },
+          { l: 'Or', v: golds,   c: '#ffd54f', e: '🥇' },
+          { l: 'Argent', v: silvers, c: '#e0e0e0', e: '🥈' },
+          { l: 'Bronze', v: bronzes, c: '#ff8a65', e: '🥉' },
+          { l: 'Record', v: `${wins}W - ${losses}L`, c: '#66bb6a' },
+        ].map((s, i) => (
+          <div key={i} className="card" style={{ padding: 14, textAlign: 'center' }}>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>{s.l}</div>
+            <div style={{ fontFamily: 'var(--font-d)', fontSize: 22, color: s.c }}>{s.e ? `${s.e} ` : ''}{s.v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add button */}
+      {!showForm ? (
+        <button onClick={() => setShowForm(true)} style={{ width: '100%', padding: '12px', borderRadius: 10, background: 'rgba(155,77,202,.1)', border: '1px dashed rgba(155,77,202,.4)', color: 'var(--accent)', fontSize: 13, cursor: 'pointer', marginBottom: 16, fontWeight: 600 }}>
+          + Ajouter une compétition
+        </button>
+      ) : (
+        <div className="card" style={{ marginBottom: 16, border: '1px solid rgba(155,77,202,.3)' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#f0ece2', marginBottom: 14 }}>Nouvelle compétition</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div>
+              <div className="label">Nom du tournoi</div>
+              <input className="input" placeholder="IBJJF Paris Open..." value={cName} onChange={e => setCName(e.target.value)} />
+            </div>
+            <div>
+              <div className="label">Date</div>
+              <input className="input" type="date" value={cDate} onChange={e => setCDate(e.target.value)} />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div>
+              <div className="label">Fédération</div>
+              <select className="input" value={cFed} onChange={e => setCFed(e.target.value)}>
+                {FEDERATIONS.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+            <div>
+              <div className="label">Catégorie poids</div>
+              <select className="input" value={cWeightCat} onChange={e => setCWeightCat(e.target.value)}>
+                {WEIGHT_CATS.map(w => <option key={w.id} value={w.id}>{w.label}{w.max !== Infinity ? ` (≤${w.max}kg)` : '+'}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            <div>
+              <div className="label">Résultat</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {Object.entries(MEDAL_EMOJI).map(([k, v]) => (
+                  <button key={k} type="button" onClick={() => setCMedal(k)} style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: cMedal === k ? 'rgba(155,77,202,.25)' : 'rgba(255,255,255,.04)', color: cMedal === k ? 'var(--accent)' : 'var(--text-dim)' }}>{v}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#ccc', cursor: 'pointer' }}>
+                <input type="checkbox" checked={cAbsolute} onChange={e => setCAbsolute(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
+                Absolute
+              </label>
+            </div>
+          </div>
+          {suggestedCat && (
+            <div style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>
+              💡 Basé sur ton poids ({profile?.weight_kg}kg) → <span style={{ color: 'var(--accent)' }}>{suggestedCat.label}</span> suggéré
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary btn-small" onClick={saveComp} disabled={saving || !cName.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Sauvegarder'}</button>
+            <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>Annuler</button>
+          </div>
+        </div>
+      )}
+
+      {/* Competition list */}
+      {competitions.length === 0 && !showForm && (
+        <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
+          <div>Aucune compétition encore. Ajoute ta première !</div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {competitions.map(c => {
+          const matches = c.competition_matches || [];
+          const cWins = matches.filter(m => m.result === 'win').length;
+          const cLosses = matches.filter(m => m.result === 'loss').length;
+          const catInfo = WEIGHT_CATS.find(w => w.id === c.weight_category);
+          const isOpen = expanded === c.id;
+          return (
+            <div key={c.id} className="card" style={{ padding: 0, overflow: 'hidden', borderColor: c.medal === 'gold' ? 'rgba(255,213,79,.2)' : c.medal === 'silver' ? 'rgba(224,224,224,.2)' : c.medal === 'bronze' ? 'rgba(255,138,101,.2)' : 'var(--border)' }}>
+              <div onClick={() => setExpanded(isOpen ? null : c.id)} style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ fontSize: 28, flexShrink: 0 }}>{MEDAL_EMOJI[c.medal] || '—'}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#f0ece2', marginBottom: 2 }}>{c.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+                    {c.comp_date} · {c.federation}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2 }}>
+                    {catInfo?.label}{c.is_absolute ? ' + Absolute' : ''} · {c.belt}
+                    {matches.length > 0 && <span style={{ marginLeft: 8, color: 'var(--text-muted)' }}>{cWins}W {cLosses}L</span>}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <button onClick={e => { e.stopPropagation(); deleteComp(c.id); }} style={{ padding: '4px 8px', borderRadius: 6, background: 'rgba(239,83,80,.08)', border: '1px solid rgba(239,83,80,.2)', color: '#ef5350', fontSize: 10, cursor: 'pointer' }}>×</button>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{isOpen ? '▲' : '▼'}</span>
+                </div>
+              </div>
+
+              {isOpen && (
+                <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px' }}>
+                  {matches.length === 0 && <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 0 8px' }}>Aucun match enregistré.</div>}
+                  {matches.map((m, i) => (
+                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: m.result === 'win' ? '#66bb6a' : '#ef5350' }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, color: '#ddd' }}>vs {m.opponent_name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.finish_type}{m.note ? ` · ${m.note}` : ''}</div>
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: m.result === 'win' ? '#66bb6a' : '#ef5350' }}>{m.result === 'win' ? 'V' : 'D'}</div>
+                    </div>
+                  ))}
+
+                  {showMatchForm === c.id ? (
+                    <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.06)' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#ccc', marginBottom: 10 }}>Ajouter un match</div>
+                      <input className="input" placeholder="Adversaire" value={mOpp} onChange={e => setMOpp(e.target.value)} style={{ marginBottom: 8 }} />
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {[{v:'win',l:'Victoire',c:'#66bb6a'},{v:'loss',l:'Défaite',c:'#ef5350'}].map(r => (
+                            <button key={r.v} type="button" onClick={() => setMResult(r.v)} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: mResult === r.v ? `${r.c}22` : 'rgba(255,255,255,.04)', color: mResult === r.v ? r.c : 'var(--text-dim)' }}>{r.l}</button>
+                          ))}
+                        </div>
+                        <select className="input" value={mFinish} onChange={e => setMFinish(e.target.value)}>
+                          {FINISH_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+                        </select>
+                      </div>
+                      <input className="input" placeholder="Note (optionnel)" value={mNote} onChange={e => setMNote(e.target.value)} style={{ marginBottom: 8 }} />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-primary btn-small" onClick={() => saveMatch(c.id)} disabled={saving || !mOpp.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Sauvegarder'}</button>
+                        <button onClick={() => setShowMatchForm(null)} style={{ flex: 1, padding: '8px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>Annuler</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => setShowMatchForm(c.id)} style={{ marginTop: 10, width: '100%', padding: '7px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px dashed rgba(255,255,255,.12)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+ Ajouter un match</button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user, gym, profile } = useAuth();
   const [tab, setTab] = useState('overview');
@@ -39,17 +286,21 @@ export default function DashboardPage() {
   async function load() {
     const now = new Date();
     const ms = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const dow2 = (now.getDay() + 6) % 7;
+    const wsDate = new Date(now); wsDate.setDate(now.getDate() - dow2); wsDate.setHours(0,0,0,0);
+    const ws = wsDate.toISOString();
     const [
       { data: mc }, { data: ac }, { data: mr }, { data: ar },
       { data: mt }, { data: at }, { data: goals }, { data: bh },
       { data: mev }, { data: aev },
-      { data: weights }, { data: wGoal }, { data: injAll }, { data: roundsOpp }
+      { data: weights }, { data: wGoal }, { data: injAll }, { data: roundsOpp },
+      { data: comps }
     ] = await Promise.all([
       supabase.from('checkins').select('*').eq('user_id', user.id).eq('gym_id', gym.id).not('checked_out_at', 'is', null).gte('checked_in_at', ms).order('checked_in_at', { ascending: false }),
       supabase.from('checkins').select('*').eq('user_id', user.id).eq('gym_id', gym.id).not('checked_out_at', 'is', null).order('checked_in_at', { ascending: false }),
       supabase.from('rounds').select('*').eq('user_id', user.id).eq('gym_id', gym.id).not('ended_at', 'is', null).gte('started_at', ms),
       supabase.from('rounds').select('*').eq('user_id', user.id).eq('gym_id', gym.id).not('ended_at', 'is', null),
-      supabase.from('techniques').select('*').eq('user_id', user.id).eq('gym_id', gym.id).gte('created_at', ms).order('created_at', { ascending: false }),
+      supabase.from('techniques').select('*').eq('user_id', user.id).eq('gym_id', gym.id).gte('created_at', ws).order('created_at', { ascending: false }),
       supabase.from('techniques').select('*').eq('user_id', user.id).eq('gym_id', gym.id).order('created_at', { ascending: false }),
       supabase.from('goals').select('*').eq('user_id', user.id).eq('gym_id', gym.id).order('created_at'),
       supabase.from('belt_history').select('*').eq('user_id', user.id).order('promoted_at'),
@@ -59,6 +310,7 @@ export default function DashboardPage() {
       supabase.from('weight_goals').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('injuries').select('*').eq('user_id', user.id).order('started_at', { ascending: false }),
       supabase.from('rounds').select('*, profiles!rounds_opponent_id_fkey(display_name, avatar_emoji, avatar_url, belt)').eq('user_id', user.id).eq('gym_id', gym.id).not('ended_at', 'is', null).or('opponent_id.not.is.null,opponent_name.not.is.null'),
+      supabase.from('competitions').select('*, competition_matches(*)').eq('user_id', user.id).order('comp_date', { ascending: false }),
     ]);
 
     const M = mc || [], A = ac || [], MR = mr || [], AR = ar || [], MT = mt || [], AT = at || [];
@@ -149,6 +401,7 @@ export default function DashboardPage() {
       weekly, submissions, topOffense, topWeaknesses, evBreak, techCats, techByDay, history,
       goals: autoGoals, beltHistory: bh || [], allRounds: AR.length, allEvents: AEV.length, allEventsData: AEV,
       weights: W, weightGoal: wGoal, activeInj: INJ.filter(i => !i.resolved_at), pastInj: INJ.filter(i => i.resolved_at).slice(0, 5), opponents,
+      competitions: comps || [],
     });
     setLoading(false);
   }
@@ -156,7 +409,7 @@ export default function DashboardPage() {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>Loading...</div>;
   if (!d) return null;
 
-  const TABS = [{ id: 'overview', label: 'Overview' }, { id: 'training', label: 'Training' }, { id: 'rounds', label: 'Rounds' }, { id: 'body', label: 'Body' }];
+  const TABS = [{ id: 'overview', label: 'Overview' }, { id: 'training', label: 'Training' }, { id: 'rounds', label: 'Rounds' }, { id: 'competition', label: '🏆 Compétition' }, { id: 'body', label: 'Body' }];
 
   return (
     <div style={{ paddingTop: 20, paddingBottom: 100 }}>
@@ -215,6 +468,20 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
+          {d.activeInj.length > 0 && (
+            <div className="card" style={{ marginTop: 14, borderColor: 'rgba(239,83,80,.2)', background: 'rgba(239,83,80,.04)' }}>
+              <div className="section-title" style={{ color: '#ef5350', marginBottom: 10 }}>🩹 Blessures actives</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {d.activeInj.map((inj, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: inj.severity === 'serious' ? '#ef5350' : inj.severity === 'moderate' ? '#ffb74d' : '#66bb6a' }} />
+                    <div style={{ fontSize: 13, color: '#ddd', flex: 1 }}>{inj.body_part} — {inj.injury_type}</div>
+                    <div style={{ fontSize: 11, color: inj.severity === 'serious' ? '#ef5350' : inj.severity === 'moderate' ? '#ffb74d' : '#66bb6a', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700 }}>{inj.severity}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -223,7 +490,7 @@ export default function DashboardPage() {
         <div className="wide-container fade-in">
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 16 }}>
             <div className="card">
-              <div className="section-title">Techniques Drilled</div>
+              <div className="section-title">Techniques Drilled This Week</div>
               {Object.keys(d.techByDay).length === 0 ? <div style={{ color: 'var(--text-muted)', fontSize: 12, padding: 16, textAlign: 'center' }}>Log techniques at checkout</div> : Object.entries(d.techByDay).slice(0, 7).map(([day, techs]) => (
                 <div key={day} style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 4, fontWeight: 600 }}>{new Date(day + 'T00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
@@ -241,6 +508,11 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
+          </div>
+          <div className="card" style={{ marginTop: 14 }}>
+            <div className="section-title">Game Flow</div>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Thicker = more used. Submissions map from the position you picked during logging.</p>
+            <TechTree events={d.allEventsData || []} />
           </div>
         </div>
       )}
@@ -302,12 +574,12 @@ export default function DashboardPage() {
               ))}</div>
             </div>
           )}
-          <div className="card" style={{ marginBottom: 14 }}>
-            <div className="section-title">Game Flow</div>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Thicker = more used. Tap a path for details. Submissions map from the position you picked during logging.</p>
-            <TechTree events={d.allEventsData || []} />
-          </div>
         </div>
+      )}
+
+      {/* ═══ COMPETITION ═══ */}
+      {tab === 'competition' && (
+        <CompetitionTab competitions={d.competitions} userId={user?.id} profile={profile} onRefresh={load} />
       )}
 
       {/* ═══ BODY ═══ */}
