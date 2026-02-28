@@ -760,8 +760,15 @@ export default function SessionsPage() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 14, fontWeight: 500, color: '#ddd', textTransform: 'capitalize' }}>{dayStr}</div>
-                        <div style={{ display: 'flex', gap: 8, marginTop: 3, alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 3, alignItems: 'center', flexWrap: 'wrap' }}>
                           {dur && <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{fmtDuration(dur)}</span>}
+                          {s.checked_in_at && (
+                            <span style={{ fontSize: 12, color: '#888' }}>
+                              {new Date(s.checked_in_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              {' → '}
+                              {s.checked_out_at ? new Date(s.checked_out_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '…'}
+                            </span>
+                          )}
                           {s.energy_rating && <span style={{ fontSize: 14 }}>{ENERGY[s.energy_rating - 1]?.emoji}</span>}
                         </div>
                       </div>
