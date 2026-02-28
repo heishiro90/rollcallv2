@@ -63,6 +63,34 @@ export default function CoachPage() {
             position_to: t.position_to.trim() || null,
           }))
         );
+
+        // ── Retroactif : injecter les techniques dans les checkins existants du meme jour ──
+        const dayStart = `${classDate}T00:00:00.000Z`;
+        const dayEnd   = `${classDate}T23:59:59.999Z`;
+        const { data: existingCheckins } = await supabase
+          .from('checkins')
+          .select('id, user_id, checked_in_at')
+          .eq('gym_id', gym.id)
+          .gte('checked_in_at', dayStart)
+          .lte('checked_in_at', dayEnd)
+          .not('checked_out_at', 'is', null);
+
+        if (existingCheckins?.length > 0) {
+          const toInsert = existingCheckins.flatMap(c =>
+            validTechs.map(t => ({
+              checkin_id: c.id,
+              user_id: c.user_id,
+              gym_id: gym.id,
+              name: t.name.trim(),
+              category: t.category,
+              created_at: c.checked_in_at,
+            }))
+          );
+          await supabase.from('techniques').upsert(toInsert, {
+            onConflict: 'checkin_id,name',
+            ignoreDuplicates: true,
+          });
+        }
       }
     }
 

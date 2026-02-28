@@ -298,6 +298,11 @@ export default function HistoryPage(){
                     {s.energy_rating&&<span>{ENERGY[s.energy_rating-1]?.emoji}</span>}
                   </div>
                   <div style={{fontSize:12,color:'var(--text-muted)'}}>{fmtDur(dur)}{s.note&&<span style={{marginLeft:8,color:'var(--text-dim)'}}>· {s.note.slice(0,40)}{s.note.length>40?'...':''}</span>}</div>
+                  <div style={{fontSize:11,color:'var(--text-muted)',marginTop:2}}>
+                    {new Date(s.checked_in_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+                    {' → '}
+                    {s.checked_out_at ? new Date(s.checked_out_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '…'}
+                  </div>
                 </div>
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
                   <button onClick={e=>{e.stopPropagation();setEditSession(s);}} style={{padding:'5px 10px',borderRadius:6,background:'rgba(255,255,255,.05)',border:'1px solid var(--border)',color:'var(--text-dim)',fontSize:11,cursor:'pointer'}}>Edit</button>
