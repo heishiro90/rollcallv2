@@ -57,6 +57,22 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
   const [expanded, setExpanded] = useState(null);
   const [showMatchForm, setShowMatchForm] = useState(null); // comp_id
   const [saving, setSaving] = useState(false);
+  const [editingComp, setEditingComp] = useState(null); // comp object being edited
+  const [editingMatch, setEditingMatch] = useState(null); // match object being edited
+  // Edit comp fields
+  const [eName, setEName] = useState('');
+  const [eDate, setEDate] = useState('');
+  const [eFed, setEFed] = useState('IBJJF');
+  const [eBelt, setEBelt] = useState('white');
+  const [eWeightCat, setEWeightCat] = useState('middle');
+  const [eAbsolute, setEAbsolute] = useState(false);
+  const [eMedal, setEMedal] = useState('none');
+  // Edit match fields
+  const [emOpp, setEmOpp] = useState('');
+  const [emResult, setEmResult] = useState('win');
+  const [emFinish, setEmFinish] = useState('Points');
+  const [emSubTech, setEmSubTech] = useState('');
+  const [emNote, setEmNote] = useState('');
 
   // Form state — competition
   const suggestedCat = getWeightCat(profile?.weight_kg);
@@ -117,6 +133,48 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
   async function deleteComp(id) {
     if (!confirm('Supprimer cette compétition ?')) return;
     await supabase.from('competitions').delete().eq('id', id);
+    onRefresh();
+  }
+
+  function openEditComp(c) {
+    setEditingComp(c);
+    setEName(c.name); setEDate(c.comp_date); setEFed(c.federation);
+    setEBelt(c.belt); setEWeightCat(c.weight_category); setEAbsolute(c.is_absolute); setEMedal(c.medal || 'none');
+  }
+
+  async function saveEditComp() {
+    if (!eName.trim()) return;
+    setSaving(true);
+    await supabase.from('competitions').update({
+      name: eName.trim(), comp_date: eDate, federation: eFed,
+      belt: eBelt, weight_category: eWeightCat, is_absolute: eAbsolute, medal: eMedal,
+    }).eq('id', editingComp.id);
+    setSaving(false);
+    setEditingComp(null);
+    onRefresh();
+  }
+
+  function openEditMatch(m) {
+    setEditingMatch(m);
+    setEmOpp(m.opponent_name); setEmResult(m.result); setEmFinish(m.finish_type);
+    setEmSubTech(m.submission_technique || ''); setEmNote(m.note || '');
+  }
+
+  async function saveEditMatch() {
+    setSaving(true);
+    await supabase.from('competition_matches').update({
+      opponent_name: emOpp.trim(), result: emResult, finish_type: emFinish,
+      submission_technique: emFinish === 'Submission' ? emSubTech || null : null,
+      note: emNote.trim() || null,
+    }).eq('id', editingMatch.id);
+    setSaving(false);
+    setEditingMatch(null);
+    onRefresh();
+  }
+
+  async function deleteMatch(id) {
+    if (!confirm('Supprimer ce match ?')) return;
+    await supabase.from('competition_matches').delete().eq('id', id);
     onRefresh();
   }
 
@@ -228,6 +286,7 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <button onClick={e => { e.stopPropagation(); openEditComp(c); }} style={{ padding: '4px 8px', borderRadius: 6, background: 'rgba(255,255,255,.05)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 10, cursor: 'pointer' }}>✏️</button>
                   <button onClick={e => { e.stopPropagation(); deleteComp(c.id); }} style={{ padding: '4px 8px', borderRadius: 6, background: 'rgba(239,83,80,.08)', border: '1px solid rgba(239,83,80,.2)', color: '#ef5350', fontSize: 10, cursor: 'pointer' }}>×</button>
                   <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{isOpen ? '▲' : '▼'}</span>
                 </div>
@@ -247,7 +306,11 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
                           {m.note && <span> · {m.note}</span>}
                         </div>
                       </div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: m.result === 'win' ? '#66bb6a' : '#ef5350' }}>{m.result === 'win' ? 'V' : 'D'}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: m.result === 'win' ? '#66bb6a' : '#ef5350' }}>{m.result === 'win' ? 'V' : 'D'}</span>
+                        <button onClick={() => openEditMatch(m)} style={{ padding: '2px 6px', borderRadius: 4, background: 'rgba(255,255,255,.05)', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 9, cursor: 'pointer' }}>✏️</button>
+                        <button onClick={() => deleteMatch(m.id)} style={{ padding: '2px 6px', borderRadius: 4, background: 'rgba(239,83,80,.08)', border: '1px solid rgba(239,83,80,.15)', color: '#ef5350', fontSize: 9, cursor: 'pointer' }}>×</button>
+                      </div>
                     </div>
                   ))}
 
@@ -290,6 +353,72 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
           );
         })}
       </div>
+      {/* ── Edit Competition Modal ── */}
+      {editingComp && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setEditingComp(null)}>
+          <div className="card" style={{ width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#f0ece2', marginBottom: 14 }}>Modifier la compétition</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div><div className="label">Nom</div><input className="input" value={eName} onChange={e => setEName(e.target.value)} /></div>
+              <div><div className="label">Date</div><input className="input" type="date" value={eDate} onChange={e => setEDate(e.target.value)} /></div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div><div className="label">Fédération</div><select className="input" value={eFed} onChange={e => setEFed(e.target.value)}>{FEDERATIONS.map(f => <option key={f} value={f}>{f}</option>)}</select></div>
+              <div><div className="label">Catégorie poids</div><select className="input" value={eWeightCat} onChange={e => setEWeightCat(e.target.value)}>{WEIGHT_CATS.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}</select></div>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <div className="label">Médaille</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {Object.entries(MEDAL_EMOJI).map(([k, v]) => (
+                  <button key={k} type="button" onClick={() => setEMedal(k)} style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: eMedal === k ? 'rgba(155,77,202,.25)' : 'rgba(255,255,255,.04)', color: eMedal === k ? 'var(--accent)' : 'var(--text-dim)' }}>{v}</button>
+                ))}
+              </div>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#ccc', cursor: 'pointer', marginBottom: 14 }}>
+              <input type="checkbox" checked={eAbsolute} onChange={e => setEAbsolute(e.target.checked)} style={{ accentColor: 'var(--accent)' }} /> Absolute
+            </label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary btn-small" onClick={saveEditComp} disabled={saving || !eName.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Sauvegarder'}</button>
+              <button onClick={() => setEditingComp(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Match Modal ── */}
+      {editingMatch && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={() => setEditingMatch(null)}>
+          <div className="card" style={{ width: '100%', maxWidth: 440, maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#f0ece2', marginBottom: 14 }}>Modifier le match</div>
+            <input className="input" placeholder="Adversaire" value={emOpp} onChange={e => setEmOpp(e.target.value)} style={{ marginBottom: 8 }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[{v:'win',l:'Victoire',c:'#66bb6a'},{v:'loss',l:'Défaite',c:'#ef5350'}].map(r => (
+                  <button key={r.v} type="button" onClick={() => setEmResult(r.v)} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: emResult === r.v ? `${r.c}22` : 'rgba(255,255,255,.04)', color: emResult === r.v ? r.c : 'var(--text-dim)' }}>{r.l}</button>
+                ))}
+              </div>
+              <select className="input" value={emFinish} onChange={e => setEmFinish(e.target.value)}>
+                {FINISH_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+            {emFinish === 'Submission' && (
+              <div style={{ marginBottom: 8, padding: '10px 12px', borderRadius: 10, background: 'rgba(229,115,115,.06)', border: '1px solid rgba(229,115,115,.2)' }}>
+                <div style={{ fontSize: 11, color: '#e57373', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, fontWeight: 700 }}>🔒 Soumission</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {COMP_SUBMISSIONS.map(s => (
+                    <button key={s} type="button" onClick={() => setEmSubTech(s === emSubTech ? '' : s)} style={{ padding: '5px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer', border: 'none', background: emSubTech === s ? 'rgba(229,115,115,.25)' : 'rgba(255,255,255,.05)', color: emSubTech === s ? '#e57373' : 'var(--text-dim)', fontWeight: emSubTech === s ? 700 : 400 }}>{s}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <input className="input" placeholder="Note (optionnel)" value={emNote} onChange={e => setEmNote(e.target.value)} style={{ marginBottom: 10 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary btn-small" onClick={saveEditMatch} disabled={saving || !emOpp.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Sauvegarder'}</button>
+              <button onClick={() => setEditingMatch(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -515,12 +644,25 @@ export default function DashboardPage() {
               })}
             </div>
           </div>
+          {/* Belt + Goals row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div className="card">
-              <div className="section-title">Belt Journey</div>
-              {d.beltHistory.length === 0 ? <div><BeltSVG belt={profile?.belt} stripes={profile?.stripes || 0} width={80} height={16} /><div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>Add in Settings</div></div> : d.beltHistory.map((b, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', borderLeft: `3px solid ${BELT_COLORS[b.belt]}`, paddingLeft: 8, marginBottom: 2 }}><BeltSVG belt={b.belt} stripes={b.stripes || 0} width={50} height={10} /><span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{b.promoted_at}</span></div>
-              ))}
+            {/* Belt — compact */}
+            <div className="card" style={{ padding: '12px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div className="section-title" style={{ margin: 0 }}>Belt Journey</div>
+                <BeltSVG belt={profile?.belt} stripes={profile?.stripes || 0} width={64} height={12} />
+              </div>
+              {d.beltHistory.length === 0
+                ? <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Add in Settings</div>
+                : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {d.beltHistory.map((b, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 6, background: `${BELT_COLORS[b.belt]}18`, border: `1px solid ${BELT_COLORS[b.belt]}30` }}>
+                        <BeltSVG belt={b.belt} stripes={b.stripes || 0} width={36} height={8} />
+                        <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{b.promoted_at}</span>
+                      </div>
+                    ))}
+                  </div>
+              }
             </div>
             <div className="card">
               <div className="section-title">Goals</div>
@@ -529,6 +671,70 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
+
+          {/* Compétitions overview */}
+          {d.competitions && d.competitions.length > 0 && (() => {
+            const allMatches = d.competitions.flatMap(c => c.matches || []);
+            const totalW = allMatches.filter(m => m.result === 'win').length;
+            const totalL = allMatches.filter(m => m.result === 'loss').length;
+            const winRate = totalW + totalL > 0 ? Math.round(totalW / (totalW + totalL) * 100) : 0;
+            const gold = d.competitions.filter(c => c.medal === 'gold').length;
+            const silver = d.competitions.filter(c => c.medal === 'silver').length;
+            const bronze = d.competitions.filter(c => c.medal === 'bronze').length;
+            return (
+              <div className="card" style={{ marginTop: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div className="section-title" style={{ margin: 0 }}>Compétitions</div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {gold > 0 && <span style={{ fontFamily: 'var(--font-d)', fontSize: 12, color: '#ffd700' }}>{gold}🥇</span>}
+                    {silver > 0 && <span style={{ fontFamily: 'var(--font-d)', fontSize: 12, color: '#c0c0c0' }}>{silver}🥈</span>}
+                    {bronze > 0 && <span style={{ fontFamily: 'var(--font-d)', fontSize: 12, color: '#cd7f32' }}>{bronze}🥉</span>}
+                  </div>
+                </div>
+                {/* Stats W/L/winrate */}
+                <div style={{ display: 'flex', gap: 24, marginBottom: 14 }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-d)', fontSize: 22, fontWeight: 700, color: '#66bb6a', lineHeight: 1 }}>{totalW}W</div>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 3 }}>Victoires</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-d)', fontSize: 22, fontWeight: 700, color: '#ef5350', lineHeight: 1 }}>{totalL}L</div>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 3 }}>Défaites</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-d)', fontSize: 22, fontWeight: 700, color: '#f0ece2', lineHeight: 1 }}>{winRate}%</div>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 3 }}>Win Rate</div>
+                  </div>
+                </div>
+                {/* Comp list */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {d.competitions.slice(0, 3).map((c, i) => {
+                    const cW = (c.matches || []).filter(m => m.result === 'win').length;
+                    const cL = (c.matches || []).filter(m => m.result === 'loss').length;
+                    const medalEmoji = c.medal === 'gold' ? '🥇' : c.medal === 'silver' ? '🥈' : c.medal === 'bronze' ? '🥉' : '—';
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px solid var(--border)' }}>
+                        <span style={{ fontSize: 22, flexShrink: 0 }}>{medalEmoji}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: 'var(--font-d)', fontSize: 13, fontWeight: 700, color: '#f0ece2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                            {c.date} {c.federation && `· ${c.federation}`} {c.weight_category && `· ${c.weight_category}`}
+                          </div>
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-d)', fontSize: 18, fontWeight: 900, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          <span style={{ color: '#66bb6a' }}>{cW}W</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: 14 }}> — </span>
+                          <span style={{ color: '#ef5350' }}>{cL}L</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Injuries */}
           {d.activeInj.length > 0 && (
             <div className="card" style={{ marginTop: 14, borderColor: 'rgba(239,83,80,.2)', background: 'rgba(239,83,80,.04)' }}>
               <div className="section-title" style={{ color: '#ef5350', marginBottom: 10 }}>🩹 Blessures actives</div>
