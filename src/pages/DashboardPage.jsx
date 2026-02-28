@@ -44,6 +44,7 @@ const WEIGHT_CATS = [
 const FEDERATIONS = ['IBJJF','UAEJJF','NAGA','Grappling Industries','CBJJ','No-Gi Worlds','Local','Autre'];
 const MEDAL_EMOJI = { gold: '🥇', silver: '🥈', bronze: '🥉', fourth: '4th', none: '—' };
 const FINISH_TYPES = ['Points','Advantage','Submission','Referee Decision','DQ','No contest'];
+const COMP_SUBMISSIONS = ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock','Paper Cutter','Canto Choke','Pena Choke'];
 
 function getWeightCat(kg) {
   if (!kg) return null;
@@ -72,6 +73,7 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
   const [mResult, setMResult] = useState('win');
   const [mFinish, setMFinish] = useState('Points');
   const [mNote, setMNote] = useState('');
+  const [mSubTech, setMSubTech] = useState('');
 
   // Stats
   const golds   = competitions.filter(c => c.medal === 'gold').length;
@@ -101,11 +103,12 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
     await supabase.from('competition_matches').insert({
       competition_id: compId, user_id: userId,
       opponent_name: mOpp.trim(), result: mResult,
-      finish_type: mFinish, note: mNote.trim() || null,
+      finish_type: mFinish, submission_technique: mFinish === 'Submission' ? mSubTech || null : null,
+      note: mNote.trim() || null,
     });
     setSaving(false);
     setShowMatchForm(null);
-    setMOpp(''); setMResult('win'); setMFinish('Points'); setMNote('');
+    setMOpp(''); setMResult('win'); setMFinish('Points'); setMNote(''); setMSubTech('');
     onRefresh();
   }
 
@@ -256,6 +259,16 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
                           {FINISH_TYPES.map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
                       </div>
+                      {mFinish === 'Submission' && (
+                        <div style={{ marginBottom: 8 }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, fontWeight: 600 }}>Soumission</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {COMP_SUBMISSIONS.map(s => (
+                              <button key={s} type="button" onClick={() => setMSubTech(s === mSubTech ? '' : s)} style={{ padding: '5px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer', border: 'none', fontWeight: mSubTech === s ? 700 : 400, background: mSubTech === s ? 'rgba(229,115,115,.25)' : 'rgba(255,255,255,.05)', color: mSubTech === s ? '#e57373' : 'var(--text-dim)' }}>{s}</button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <input className="input" placeholder="Note (optionnel)" value={mNote} onChange={e => setMNote(e.target.value)} style={{ marginBottom: 8 }} />
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button className="btn btn-primary btn-small" onClick={() => saveMatch(c.id)} disabled={saving || !mOpp.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Sauvegarder'}</button>
@@ -396,12 +409,20 @@ export default function DashboardPage() {
       techByDay[day].push(t);
     });
 
+    // Comp submission stars
+    const compSubMap = {};
+    (comps || []).forEach(c => (c.competition_matches || []).forEach(m => {
+      if (m.finish_type === 'Submission' && m.submission_technique) {
+        compSubMap[m.submission_technique] = (compSubMap[m.submission_technique] || 0) + 1;
+      }
+    }));
+
     setD({
       monthSessions: M.length, monthMin: M.reduce((s, c) => s + (c.duration_minutes || 0), 0), monthRounds: MR.length, avgRound, streak, avgE,
       weekly, submissions, topOffense, topWeaknesses, evBreak, techCats, techByDay, history,
       goals: autoGoals, beltHistory: bh || [], allRounds: AR.length, allEvents: AEV.length, allEventsData: AEV,
       weights: W, weightGoal: wGoal, activeInj: INJ.filter(i => !i.resolved_at), pastInj: INJ.filter(i => i.resolved_at).slice(0, 5), opponents,
-      competitions: comps || [],
+      competitions: comps || [], compSubMap,
     });
     setLoading(false);
   }
@@ -420,7 +441,18 @@ export default function DashboardPage() {
           <div>
             <h1 style={{ fontFamily: 'var(--font-d)', fontSize: 24, fontWeight: 400, color: '#f0ece2' }}>{profile?.display_name}</h1>
             <div style={{ marginTop: 4 }}><BeltSVG belt={profile?.belt} stripes={profile?.stripes || 0} width={100} height={20} /></div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{gym?.name}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+            {gym?.name}
+            {d.weights?.length > 0 && (() => {
+              const lastW = d.weights[d.weights.length - 1]?.weight_kg;
+              const cat = lastW ? [
+                { max: 57.5, label: 'Rooster' }, { max: 64, label: 'Pluma' }, { max: 70, label: 'Pena' },
+                { max: 76, label: 'Leve' }, { max: 82.3, label: 'Médio' }, { max: 88.3, label: 'Meio-Pesado' },
+                { max: 94.3, label: 'Pesado' }, { max: 100.5, label: 'Super-Pesado' }, { max: Infinity, label: 'Pesadíssimo' }
+              ].find(c => lastW <= c.max) : null;
+              return cat ? <span style={{ marginLeft: 6, color: 'var(--accent)', fontWeight: 600 }}>· {cat.label} ({lastW}kg)</span> : null;
+            })()}
+          </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 20 }}>
@@ -449,9 +481,22 @@ export default function DashboardPage() {
             </div>
             <div className="card">
               <div className="section-title">Submissions</div>
-              {d.submissions.length === 0 ? <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Log round events</div> : d.submissions.slice(0, 5).map((s, i) => (
-                <div key={i} style={{ marginBottom: 6 }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}><span style={{ fontSize: 12, color: '#ddd' }}>{s.name}</span><span style={{ fontSize: 11 }}><span style={{ color: '#66bb6a' }}>{s.off}</span>{s.def > 0 && <span style={{ color: '#ef5350', marginLeft: 4 }}>{s.def}</span>}</span></div><Bar value={s.off} max={d.submissions[0]?.off || 1} color={i === 0 ? '#9b4dca' : 'rgba(255,255,255,.12)'} /></div>
-              ))}
+              {d.submissions.length === 0 ? <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Log round events</div> : d.submissions.slice(0, 5).map((s, i) => {
+                const compCount = d.compSubMap?.[s.name] || 0;
+                const stars = '⭐'.repeat(Math.min(compCount, 5));
+                return (
+                  <div key={i} style={{ marginBottom: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2, alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, color: '#ddd', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {s.name}
+                        {compCount > 0 && <span style={{ fontSize: 10, letterSpacing: -1 }} title={`${compCount} finish(es) en compétition`}>{stars}{compCount > 5 ? `+${compCount-5}` : ''}</span>}
+                      </span>
+                      <span style={{ fontSize: 11 }}><span style={{ color: '#66bb6a' }}>{s.off}</span>{s.def > 0 && <span style={{ color: '#ef5350', marginLeft: 4 }}>{s.def}</span>}</span>
+                    </div>
+                    <Bar value={s.off} max={d.submissions[0]?.off || 1} color={i === 0 ? '#9b4dca' : compCount > 0 ? 'rgba(255,213,79,.4)' : 'rgba(255,255,255,.12)'} />
+                  </div>
+                );
+              })}
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
