@@ -23,8 +23,8 @@ const RESULTS = [
 ];
 const CATEGORIES = [
   { id: 'takedown', label: 'Takedowns', color: '#ffd54f', techniques: ['Single Leg','Double Leg','Arm Drag','Snap Down','Body Lock Takedown','Ankle Pick','Outside Trip','Inside Trip','Hip Throw','Shoulder Throw','Foot Sweep','Drop Throw','Guard Pull'] },
-  { id: 'submission', label: 'Submissions', color: '#e57373', askPosition: true, techniques: ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock'] },
-  { id: 'sweep', label: 'Sweeps', color: '#64b5f6', askPosition: true, techniques: ['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Pendulum','Tripod Sweep','Sickle Sweep','Elevator Sweep','Waiter Sweep'] },
+  { id: 'submission', label: 'Submissions', color: '#e57373', askPosition: true, techniques: ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock','Paper Cutter','Canto Choke','Pena Choke'] },
+  { id: 'sweep', label: 'Sweeps', color: '#64b5f6', askPosition: true, techniques: ['Scissor Sweep','Hip Bump','Flower Sweep','Berimbolo','X-Guard Sweep','Butterfly Sweep','Pendulum','Tripod Sweep','Sickle Sweep','Elevator Sweep','Waiter Sweep','Lasso Sweep'] },
 ];
 const CAT_COLORS = { takedown: '#ffd54f', submission: '#e57373', sweep: '#64b5f6' };
 
