@@ -44,7 +44,7 @@ const WEIGHT_CATS = [
 const FEDERATIONS = ['IBJJF','UAEJJF','NAGA','Grappling Industries','CBJJ','No-Gi Worlds','Local','Autre'];
 const MEDAL_EMOJI = { gold: '🥇', silver: '🥈', bronze: '🥉', fourth: '4th', none: '—' };
 const FINISH_TYPES = ['Points','Advantage','Submission','Referee Decision','DQ','No contest'];
-const COMP_SUBMISSIONS = ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock','Paper Cutter','Canto Choke','Pena Choke','Lasso Sweep','Spider','De La Riva','Single Leg X','Butterfly','North South'];
+const COMP_SUBMISSIONS = ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock','Paper Cutter','Canto Choke','Pena Choke'];
 
 function getWeightCat(kg) {
   if (!kg) return null;
@@ -338,10 +338,23 @@ export default function DashboardPage() {
     const ws = new Date(now); ws.setDate(now.getDate() - dow); ws.setHours(0,0,0,0);
     const weekly = DAY_LABELS.map((l, i) => { const dd = new Date(ws); dd.setDate(ws.getDate() + i); const ds = dd.toISOString().split('T')[0]; return { label: l, minutes: M.filter(c => c.checked_in_at.startsWith(ds)).reduce((s, c) => s + (c.duration_minutes || 0), 0) }; });
 
-    // Subs
+    // Comp submission stars — computed FIRST so available for sorting
+    const compSubMap = {};
+    (comps || []).forEach(c => (c.competition_matches || []).forEach(m => {
+      if (m.finish_type === 'Submission' && m.submission_technique) {
+        compSubMap[m.submission_technique] = (compSubMap[m.submission_technique] || 0) + 1;
+      }
+    }));
+
+    // Subs — merge training + comp-only
     const subMap = {};
     AEV.filter(e => e.event_type === 'submission').forEach(e => { subMap[e.technique] = subMap[e.technique] || { off: 0, def: 0 }; subMap[e.technique][e.direction === 'offensive' ? 'off' : 'def']++; });
-    const submissions = Object.entries(subMap).map(([n, v]) => ({ name: n, ...v })).sort((a, b) => b.off - a.off).slice(0, 8);
+    Object.keys(compSubMap).forEach(tech => { if (!subMap[tech]) subMap[tech] = { off: 0, def: 0 }; });
+    const submissions = Object.entries(subMap).map(([n, v]) => ({ name: n, ...v })).sort((a, b) => {
+      const aC = compSubMap[a.name] || 0, bC = compSubMap[b.name] || 0;
+      if (b.off !== a.off) return b.off - a.off;
+      return bC - aC;
+    }).slice(0, 10);
 
     // Off/def
     const offMap = {}, defMap = {};
@@ -413,13 +426,7 @@ export default function DashboardPage() {
       techByDay[day].push(t);
     });
 
-    // Comp submission stars
-    const compSubMap = {};
-    (comps || []).forEach(c => (c.competition_matches || []).forEach(m => {
-      if (m.finish_type === 'Submission' && m.submission_technique) {
-        compSubMap[m.submission_technique] = (compSubMap[m.submission_technique] || 0) + 1;
-      }
-    }));
+    // compSubMap already computed above
 
     setD({
       monthSessions: M.length, monthMin: M.reduce((s, c) => s + (c.duration_minutes || 0), 0), monthRounds: MR.length, avgRound, streak, avgE,
@@ -487,16 +494,24 @@ export default function DashboardPage() {
               <div className="section-title">Submissions</div>
               {d.submissions.length === 0 ? <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Log round events</div> : d.submissions.slice(0, 5).map((s, i) => {
                 const compCount = d.compSubMap?.[s.name] || 0;
+                const isCompOnly = s.off === 0 && compCount > 0;
+                const maxVal = d.submissions.find(x => x.off > 0)?.off || 1;
                 return (
                   <div key={i} style={{ marginBottom: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2, alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, color: '#ddd', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 12, color: isCompOnly ? '#ffd54f' : '#ddd', display: 'flex', alignItems: 'center', gap: 4 }}>
                         {s.name}
                         {compCount > 0 && <span style={{ fontSize: 10, color: '#ffd54f' }}>{'⭐'.repeat(Math.min(compCount, 5))}{compCount > 5 ? `+${compCount-5}` : ''}</span>}
                       </span>
-                      <span style={{ fontSize: 11 }}><span style={{ color: '#66bb6a' }}>{s.off}</span>{s.def > 0 && <span style={{ color: '#ef5350', marginLeft: 4 }}>{s.def}</span>}</span>
+                      <span style={{ fontSize: 11 }}>
+                        {s.off > 0 && <span style={{ color: '#66bb6a' }}>{s.off}</span>}
+                        {s.def > 0 && <span style={{ color: '#ef5350', marginLeft: 4 }}>{s.def}</span>}
+                      </span>
                     </div>
-                    <Bar value={s.off} max={d.submissions[0]?.off || 1} color={compCount > 0 ? '#ffd54f' : i === 0 ? '#9b4dca' : 'rgba(255,255,255,.12)'} />
+                    {isCompOnly
+                      ? <div style={{ height: 5, borderRadius: 3, background: 'linear-gradient(to right, rgba(255,213,79,.5), rgba(255,213,79,.1))', width: `${Math.min(compCount * 20, 80)}%` }} />
+                      : <Bar value={s.off} max={maxVal} color={compCount > 0 ? '#ffd54f' : i === 0 ? '#9b4dca' : 'rgba(255,255,255,.12)'} />
+                    }
                   </div>
                 );
               })}
