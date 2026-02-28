@@ -853,9 +853,16 @@ export default function CheckInPage() {
                 <div key={s.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,.04)' }}>
                   {selectMode && <input type="checkbox" checked={selectedSessions.has(s.id)} onChange={() => toggleSelect(s.id)} style={{ width:16, height:16, accentColor:'var(--accent)', cursor:'pointer', flexShrink:0 }} />}
                   <div style={{ flex:1 }}>
-                    <span style={{ fontSize:13, color:'#ccc' }}>{new Date(s.checked_in_at).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</span>
-                    <span style={{ fontSize:12, color:SESSION_TYPES.find(t=>t.id===s.session_type)?.color, marginLeft:8 }}>{s.session_type}</span>
-                    {s.energy_rating && <span style={{ marginLeft:4 }}>{ENERGY[s.energy_rating-1]?.emoji}</span>}
+                    <div>
+                      <span style={{ fontSize:13, color:'#ccc' }}>{new Date(s.checked_in_at).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</span>
+                      <span style={{ fontSize:12, color:SESSION_TYPES.find(t=>t.id===s.session_type)?.color, marginLeft:8 }}>{s.session_type}</span>
+                      {s.energy_rating && <span style={{ marginLeft:4 }}>{ENERGY[s.energy_rating-1]?.emoji}</span>}
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>
+                      {new Date(s.checked_in_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+                      {' \u2192 '}
+                      {s.checked_out_at ? new Date(s.checked_out_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '\u2026'}
+                    </div>
                   </div>
                   {!selectMode && <button onClick={() => deleteSingle(s.id)} style={{ background:'none', border:'none', color:'#ef5350', cursor:'pointer', fontSize:11, padding:'2px 6px' }}>✕</button>}
                 </div>
