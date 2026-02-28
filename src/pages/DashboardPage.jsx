@@ -44,7 +44,7 @@ const WEIGHT_CATS = [
 const FEDERATIONS = ['IBJJF','UAEJJF','NAGA','Grappling Industries','CBJJ','No-Gi Worlds','Local','Autre'];
 const MEDAL_EMOJI = { gold: '🥇', silver: '🥈', bronze: '🥉', fourth: '4th', none: '—' };
 const FINISH_TYPES = ['Points','Advantage','Submission','Referee Decision','DQ','No contest'];
-const COMP_SUBMISSIONS = ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock','Paper Cutter','Canto Choke','Pena Choke'];
+const COMP_SUBMISSIONS = ['Armbar','Triangle','RNC','Kimura','Guillotine','Darce','Omoplata','Loop Choke','Bow & Arrow','Ezekiel','Americana','Heel Hook','Knee Bar','Toe Hold','Baseball Choke','Cross Collar','Anaconda','North-South Choke','Gogoplata','Calf Slicer','Wrist Lock','Paper Cutter','Canto Choke','Pena Choke','Lasso Sweep','Spider','De La Riva','Single Leg X','Butterfly','North South'];
 
 function getWeightCat(kg) {
   if (!kg) return null;
@@ -487,13 +487,12 @@ export default function DashboardPage() {
               <div className="section-title">Submissions</div>
               {d.submissions.length === 0 ? <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Log round events</div> : d.submissions.slice(0, 5).map((s, i) => {
                 const compCount = d.compSubMap?.[s.name] || 0;
-                const stars = '⭐'.repeat(Math.min(compCount, 5));
                 return (
                   <div key={i} style={{ marginBottom: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2, alignItems: 'center' }}>
                       <span style={{ fontSize: 12, color: '#ddd', display: 'flex', alignItems: 'center', gap: 4 }}>
                         {s.name}
-                        {compCount > 0 && <span style={{ fontSize: 10, letterSpacing: -1, color: '#ffd54f' }} title={`${compCount} finish(es) en compétition`}>{'⭐'.repeat(Math.min(compCount, 5))}{compCount > 5 ? `+${compCount-5}` : ''}</span>}
+                        {compCount > 0 && <span style={{ fontSize: 10, color: '#ffd54f' }}>{'⭐'.repeat(Math.min(compCount, 5))}{compCount > 5 ? `+${compCount-5}` : ''}</span>}
                       </span>
                       <span style={{ fontSize: 11 }}><span style={{ color: '#66bb6a' }}>{s.off}</span>{s.def > 0 && <span style={{ color: '#ef5350', marginLeft: 4 }}>{s.def}</span>}</span>
                     </div>
