@@ -297,11 +297,14 @@ export default function HistoryPage(){
                     <span style={{fontSize:11,color:typeInfo?.color,fontWeight:700,textTransform:'uppercase',letterSpacing:1}}>{s.session_type}</span>
                     {s.energy_rating&&<span>{ENERGY[s.energy_rating-1]?.emoji}</span>}
                   </div>
-                  <div style={{fontSize:12,color:'var(--text-muted)'}}>{fmtDur(dur)}{s.note&&<span style={{marginLeft:8,color:'var(--text-dim)'}}>· {s.note.slice(0,40)}{s.note.length>40?'...':''}</span>}</div>
-                  <div style={{fontSize:11,color:'var(--text-muted)',marginTop:2}}>
-                    {new Date(s.checked_in_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
-                    {' → '}
-                    {s.checked_out_at ? new Date(s.checked_out_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '…'}
+                  <div style={{fontSize:12,color:'var(--text-muted)'}}>
+                    {fmtDur(dur)}
+                    <span style={{marginLeft:8,color:'#aaa'}}>
+                      {new Date(s.checked_in_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+                      {' → '}
+                      {s.checked_out_at ? new Date(s.checked_out_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '...'}
+                    </span>
+                    {s.note&&<span style={{marginLeft:8,color:'var(--text-dim)'}}>· {s.note.slice(0,40)}{s.note.length>40?'...':''}</span>}
                   </div>
                 </div>
                 <div style={{display:'flex',alignItems:'center',gap:8}}>
