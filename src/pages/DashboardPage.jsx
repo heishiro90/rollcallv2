@@ -86,15 +86,17 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
   async function saveComp() {
     if (!cName.trim()) return;
     setSaving(true);
-    await supabase.from('competitions').insert({
+    const { data: newComp } = await supabase.from('competitions').insert({
       user_id: userId, gym_id: gym?.id,
       name: cName.trim(), comp_date: cDate, federation: cFed,
       belt: cBelt, weight_category: cWeightCat, is_absolute: cAbsolute, medal: cMedal,
-    });
+    }).select().single();
     setSaving(false);
     setShowForm(false);
     setCName(''); setCMedal('none'); setCAbsolute(false);
-    onRefresh();
+    await onRefresh();
+    // Automatically open the new comp and show match form
+    if (newComp?.id) { setExpanded(newComp.id); setShowMatchForm(newComp.id); }
   }
 
   async function saveMatch(compId) {
@@ -500,17 +502,14 @@ export default function DashboardPage() {
                 return (
                   <div key={i} style={{ marginBottom: 6 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2, alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, color: '#ddd', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {s.name}
-                        {compCount > 0 && <span style={{ fontSize: 10, color: '#ffd54f' }}>{'⭐'.repeat(Math.min(compCount, 5))}{compCount > 5 ? `+${compCount-5}` : ''}</span>}
-                      </span>
-                      <span style={{ fontSize: 11, display: 'flex', gap: 4 }}>
+                      <span style={{ fontSize: 12, color: '#ddd' }}>{s.name}</span>
+                      <span style={{ fontSize: 11, display: 'flex', gap: 6, alignItems: 'center' }}>
                         {s.off > 0 && <span style={{ color: '#66bb6a' }}>{s.off}</span>}
-                        {compCount > 0 && <span style={{ color: '#ffd54f' }}>+{compCount}🏆</span>}
+                        {compCount > 0 && <span style={{ color: '#ffd54f', fontWeight: 700 }}>{compCount}🏆</span>}
                         {s.def > 0 && <span style={{ color: '#ef5350' }}>{s.def}↓</span>}
                       </span>
                     </div>
-                    <Bar value={s.total || s.off} max={maxTotal} color={compCount > 0 ? '#ffd54f' : i === 0 ? '#9b4dca' : 'rgba(255,255,255,.12)'} />
+                    <Bar value={s.total || s.off} max={maxTotal} color={i === 0 && compCount === 0 ? '#9b4dca' : 'rgba(255,255,255,.12)'} />
                   </div>
                 );
               })}

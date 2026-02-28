@@ -162,16 +162,10 @@ export default function ProfilePage() {
           <BeltSVG belt={belt} stripes={parseInt(stripes)} width={140} height={28} />
         </div>
 
-        {/* Age & Weight */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
-          <div>
-            <label className="label">Âge</label>
-            <input className="input" type="number" min="1" max="100" placeholder="ex. 28" value={age} onChange={e => setAge(e.target.value)} />
-          </div>
-          <div>
-            <label className="label">Poids de corps (kg)</label>
-            <input className="input" type="number" min="30" max="200" step="0.5" placeholder="ex. 80.5" value={weightKg} onChange={e => setWeightKg(e.target.value)} />
-          </div>
+        {/* Age */}
+        <div style={{ marginBottom: 14, maxWidth: '50%' }}>
+          <label className="label">Âge</label>
+          <input className="input" type="number" min="1" max="100" placeholder="ex. 28" value={age} onChange={e => setAge(e.target.value)} />
         </div>
 
         <button className="btn btn-primary" type="submit" disabled={saving}>{saved ? 'Sauvegardé ✓' : saving ? '...' : 'Sauvegarder'}</button>
