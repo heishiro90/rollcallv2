@@ -489,11 +489,11 @@ export default function DashboardPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2, alignItems: 'center' }}>
                       <span style={{ fontSize: 12, color: '#ddd', display: 'flex', alignItems: 'center', gap: 4 }}>
                         {s.name}
-                        {compCount > 0 && <span style={{ fontSize: 10, letterSpacing: -1 }} title={`${compCount} finish(es) en compétition`}>{stars}{compCount > 5 ? `+${compCount-5}` : ''}</span>}
+                        {compCount > 0 && <span style={{ fontSize: 10, letterSpacing: -1, color: '#ffd54f' }} title={`${compCount} finish(es) en compétition`}>{'⭐'.repeat(Math.min(compCount, 5))}{compCount > 5 ? `+${compCount-5}` : ''}</span>}
                       </span>
                       <span style={{ fontSize: 11 }}><span style={{ color: '#66bb6a' }}>{s.off}</span>{s.def > 0 && <span style={{ color: '#ef5350', marginLeft: 4 }}>{s.def}</span>}</span>
                     </div>
-                    <Bar value={s.off} max={d.submissions[0]?.off || 1} color={i === 0 ? '#9b4dca' : compCount > 0 ? 'rgba(255,213,79,.4)' : 'rgba(255,255,255,.12)'} />
+                    <Bar value={s.off} max={d.submissions[0]?.off || 1} color={compCount > 0 ? '#ffd54f' : i === 0 ? '#9b4dca' : 'rgba(255,255,255,.12)'} />
                   </div>
                 );
               })}
