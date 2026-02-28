@@ -288,7 +288,7 @@ export default function DashboardPage() {
     const ms = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const dow2 = (now.getDay() + 6) % 7;
     const wsDate = new Date(now); wsDate.setDate(now.getDate() - dow2); wsDate.setHours(0,0,0,0);
-    const ws = wsDate.toISOString();
+    const weekStart = wsDate.toISOString();
     const [
       { data: mc }, { data: ac }, { data: mr }, { data: ar },
       { data: mt }, { data: at }, { data: goals }, { data: bh },
@@ -300,7 +300,7 @@ export default function DashboardPage() {
       supabase.from('checkins').select('*').eq('user_id', user.id).eq('gym_id', gym.id).not('checked_out_at', 'is', null).order('checked_in_at', { ascending: false }),
       supabase.from('rounds').select('*').eq('user_id', user.id).eq('gym_id', gym.id).not('ended_at', 'is', null).gte('started_at', ms),
       supabase.from('rounds').select('*').eq('user_id', user.id).eq('gym_id', gym.id).not('ended_at', 'is', null),
-      supabase.from('techniques').select('*').eq('user_id', user.id).eq('gym_id', gym.id).gte('created_at', ws).order('created_at', { ascending: false }),
+      supabase.from('techniques').select('*').eq('user_id', user.id).eq('gym_id', gym.id).gte('created_at', weekStart).order('created_at', { ascending: false }),
       supabase.from('techniques').select('*').eq('user_id', user.id).eq('gym_id', gym.id).order('created_at', { ascending: false }),
       supabase.from('goals').select('*').eq('user_id', user.id).eq('gym_id', gym.id).order('created_at'),
       supabase.from('belt_history').select('*').eq('user_id', user.id).order('promoted_at'),
