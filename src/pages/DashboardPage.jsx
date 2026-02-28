@@ -239,7 +239,11 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
                       <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: m.result === 'win' ? '#66bb6a' : '#ef5350' }} />
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, color: '#ddd' }}>vs {m.opponent_name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{m.finish_type}{m.note ? ` · ${m.note}` : ''}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                          {m.finish_type}
+                          {m.submission_technique && <span style={{ color: '#e57373', marginLeft: 4 }}>· {m.submission_technique}</span>}
+                          {m.note && <span> · {m.note}</span>}
+                        </div>
                       </div>
                       <div style={{ fontSize: 12, fontWeight: 700, color: m.result === 'win' ? '#66bb6a' : '#ef5350' }}>{m.result === 'win' ? 'V' : 'D'}</div>
                     </div>
@@ -260,8 +264,8 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
                         </select>
                       </div>
                       {mFinish === 'Submission' && (
-                        <div style={{ marginBottom: 8 }}>
-                          <div style={{ fontSize: 11, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6, fontWeight: 600 }}>Soumission</div>
+                        <div style={{ marginBottom: 8, padding: '10px 12px', borderRadius: 10, background: 'rgba(229,115,115,.06)', border: '1px solid rgba(229,115,115,.2)' }}>
+                          <div style={{ fontSize: 11, color: '#e57373', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, fontWeight: 700 }}>🔒 Quelle soumission ?{!mSubTech && <span style={{ color: '#888', fontWeight: 400, marginLeft: 6 }}>(requis pour les stats)</span>}</div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                             {COMP_SUBMISSIONS.map(s => (
                               <button key={s} type="button" onClick={() => setMSubTech(s === mSubTech ? '' : s)} style={{ padding: '5px 10px', borderRadius: 20, fontSize: 11, cursor: 'pointer', border: 'none', fontWeight: mSubTech === s ? 700 : 400, background: mSubTech === s ? 'rgba(229,115,115,.25)' : 'rgba(255,255,255,.05)', color: mSubTech === s ? '#e57373' : 'var(--text-dim)' }}>{s}</button>
