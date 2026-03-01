@@ -525,8 +525,8 @@ function BeltProgressBar({ segments, currentBelt, currentStripes, beltColors, be
               {/* Hover tooltip */}
               {isHov && (seg || isCurrent) && (
                 <div style={{
-                  position: 'absolute', bottom: '100%', left: '50%',
-                  transform: 'translateX(-50%)', marginBottom: 8,
+                  position: 'absolute', top: '100%', left: '50%',
+                  transform: 'translateX(-50%)', marginTop: 8,
                   background: '#1c1c28', border: '1px solid rgba(255,255,255,.12)',
                   borderRadius: 8, padding: '7px 11px', whiteSpace: 'nowrap',
                   boxShadow: '0 8px 24px rgba(0,0,0,.7)', zIndex: 100,
@@ -791,24 +791,19 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* TABS */}
+      {/* TABS + période inline */}
       <div className="wide-container" style={{ borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
-        <div style={{ display: 'flex', gap: 16, overflowX: 'auto' }}>{TABS.map(t => <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: '8px 0', background: 'none', border: 'none', borderBottom: tab === t.id ? '2px solid var(--accent)' : '2px solid transparent', color: tab === t.id ? '#f0ece2' : 'var(--text-dim)', fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>{t.label}</button>)}</div>
-      </div>
-
-      {/* ═══ OVERVIEW ═══ */}
-      {tab === 'overview' && (
-        <div className="wide-container fade-in">
-          {/* Period selector — compact dropdown */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-            <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1.5 }}>Période</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, overflowX: 'auto' }}>
+          {TABS.map(t => <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: '8px 0', background: 'none', border: 'none', borderBottom: tab === t.id ? '2px solid var(--accent)' : '2px solid transparent', color: tab === t.id ? '#f0ece2' : 'var(--text-dim)', fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>{t.label}</button>)}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, paddingBottom: 2 }}>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1.5 }}>Période</span>
             <select
               value={period}
               onChange={e => changePeriod(e.target.value)}
               style={{
-                background: 'rgba(255,255,255,.06)', border: '1px solid var(--border)',
-                borderRadius: 8, color: '#f0ece2', fontSize: 12, fontWeight: 600,
-                padding: '5px 10px', cursor: 'pointer', outline: 'none',
+                background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)',
+                borderRadius: 6, color: '#f0ece2', fontSize: 11, fontWeight: 600,
+                padding: '3px 8px', cursor: 'pointer', outline: 'none',
               }}
             >
               {[
@@ -822,7 +817,12 @@ export default function DashboardPage() {
               ))}
             </select>
           </div>
+        </div>
+      </div>
 
+      {/* ═══ OVERVIEW ═══ */}
+      {tab === 'overview' && (
+        <div className="wide-container fade-in">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
             {[
               { l: 'Sessions',   v: d.monthSessions,                                      s: 'sur la période', c: '#64b5f6' },
@@ -863,20 +863,23 @@ export default function DashboardPage() {
               })}
             </div>
           </div>
-          {/* Goals row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div className="card">
-              <div className="section-title">Goals</div>
-              {d.goals.length === 0 ? <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Set in Settings</div> : d.goals.map((g, i) => (
-                <div key={i} style={{ marginBottom: 8 }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}><span style={{ fontSize: 12, color: g.completed ? '#66bb6a' : '#ccc' }}>{g.completed ? '✓ ' : ''}{g.title}</span><span style={{ fontSize: 11, color: g.completed ? '#66bb6a' : '#ce93d8' }}>{g._current !== undefined ? `${g._current}/${g.target_value}` : `${g.progress}%`}</span></div><Bar value={g.progress} max={100} color={g.completed ? '#66bb6a' : '#ce93d8'} /></div>
-              ))}
-            </div>
-            <div className="card" style={{ opacity: 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
-                <div style={{ fontSize: 20, marginBottom: 6 }}>🥋</div>
-                Belt Journey dans ton profil
-              </div>
-            </div>
+          {/* Goals — full width */}
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="section-title">Goals</div>
+            {d.goals.length === 0
+              ? <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Set in Settings</div>
+              : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '6px 24px' }}>
+                  {d.goals.map((g, i) => (
+                    <div key={i} style={{ marginBottom: 4 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                        <span style={{ fontSize: 12, color: g.completed ? '#66bb6a' : '#ccc' }}>{g.completed ? '✓ ' : ''}{g.title}</span>
+                        <span style={{ fontSize: 11, color: g.completed ? '#66bb6a' : '#ce93d8' }}>{g._current !== undefined ? `${g._current}/${g.target_value}` : `${g.progress}%`}</span>
+                      </div>
+                      <Bar value={g.progress} max={100} color={g.completed ? '#66bb6a' : '#ce93d8'} />
+                    </div>
+                  ))}
+                </div>
+            }
           </div>
 
           {/* Compétitions overview */}
