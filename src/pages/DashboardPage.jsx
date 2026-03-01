@@ -449,6 +449,113 @@ function periodToStartDate(periodId, beltHistory = []) {
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 }
 
+// ── BELT PROGRESS BAR ────────────────────────────────────────────────────
+function BeltProgressBar({ segments, currentBelt, currentStripes, beltColors, beltOrder }) {
+  const [hoveredIdx, setHoveredIdx] = useState(null);
+
+  const currentBeltIdx = beltOrder.indexOf(currentBelt);
+
+  return (
+    <div style={{ flex: 1, maxWidth: 340, minWidth: 200, position: 'relative' }}>
+      {/* Belt labels row */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+        {beltOrder.map((belt, i) => {
+          const seg = segments.find(s => s.belt === belt);
+          const isCurrent = belt === currentBelt;
+          const isPast = i < currentBeltIdx;
+          const color = beltColors[belt];
+          return (
+            <span key={belt} style={{
+              fontSize: 8, letterSpacing: 0.5, fontWeight: isCurrent ? 700 : 400,
+              color: isCurrent ? color.label : isPast ? '#555' : '#333',
+              textTransform: 'capitalize',
+            }}>
+              {belt.charAt(0).toUpperCase() + belt.slice(1)}
+            </span>
+          );
+        })}
+      </div>
+
+      {/* Track */}
+      <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'visible', gap: 2, position: 'relative' }}>
+        {beltOrder.map((belt, i) => {
+          const seg = segments.find(s => s.belt === belt);
+          const isCurrent = belt === currentBelt;
+          const isPast = i < currentBeltIdx;
+          const isFuture = i > currentBeltIdx;
+          const color = beltColors[belt];
+          const isHov = hoveredIdx === i;
+          const stripes = isCurrent ? currentStripes : (seg?.stripes || 0);
+
+          return (
+            <div
+              key={belt}
+              onMouseEnter={() => seg || isCurrent ? setHoveredIdx(i) : null}
+              onMouseLeave={() => setHoveredIdx(null)}
+              style={{
+                flex: 1, height: '100%', borderRadius: 4, position: 'relative',
+                background: isFuture ? 'rgba(255,255,255,.05)' : color.bg,
+                border: isFuture ? '1px solid rgba(255,255,255,.07)' : 'none',
+                boxShadow: isCurrent && color.glow ? `0 0 10px ${color.glow}` : 'none',
+                transition: 'box-shadow .2s',
+                cursor: seg || isCurrent ? 'pointer' : 'default',
+                display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+                padding: '0 3px', gap: 2,
+              }}
+            >
+              {/* Stripes — black marks on the bar */}
+              {!isFuture && Array.from({ length: stripes }).map((_, si) => (
+                <div key={si} style={{
+                  width: 3, height: 7, borderRadius: 1,
+                  background: color.stripe,
+                  flexShrink: 0,
+                }} />
+              ))}
+
+              {/* Current belt glow dot */}
+              {isCurrent && (
+                <div style={{
+                  position: 'absolute', right: -4, top: '50%', transform: 'translateY(-50%)',
+                  width: 10, height: 10, borderRadius: '50%',
+                  background: color.label, border: '2px solid #0e0e12',
+                  boxShadow: color.glow ? `0 0 8px ${color.glow}` : 'none',
+                }} />
+              )}
+
+              {/* Hover tooltip */}
+              {isHov && (seg || isCurrent) && (
+                <div style={{
+                  position: 'absolute', bottom: '100%', left: '50%',
+                  transform: 'translateX(-50%)', marginBottom: 8,
+                  background: '#1c1c28', border: '1px solid rgba(255,255,255,.12)',
+                  borderRadius: 8, padding: '7px 11px', whiteSpace: 'nowrap',
+                  boxShadow: '0 8px 24px rgba(0,0,0,.7)', zIndex: 100,
+                  pointerEvents: 'none',
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: color.label, marginBottom: 3, textTransform: 'capitalize' }}>
+                    {belt} {stripes > 0 ? `· ${stripes} stripe${stripes > 1 ? 's' : ''}` : ''}
+                    {isCurrent && <span style={{ marginLeft: 5, fontSize: 9, color: color.label, opacity: .7 }}>● now</span>}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#666' }}>
+                    {seg ? seg.date : 'en cours'}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Sub label */}
+      <div style={{ fontSize: 9, color: '#555', marginTop: 4 }}>
+        {currentBelt.charAt(0).toUpperCase() + currentBelt.slice(1)}
+        {currentStripes > 0 ? ` · ${currentStripes} stripe${currentStripes > 1 ? 's' : ''}` : ''}
+      </div>
+    </div>
+  );
+}
+
+// ── DASHBOARD PAGE ────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user, gym, profile } = useAuth();
   const [tab, setTab] = useState('overview');
@@ -613,29 +720,71 @@ export default function DashboardPage() {
 
   const TABS = [{ id: 'overview', label: 'Overview' }, { id: 'training', label: 'Training' }, { id: 'rounds', label: 'Rounds' }, { id: 'competition', label: '🏆 Compétition' }, { id: 'body', label: 'Body' }];
 
+  const BELT_ORDER = ['white', 'blue', 'purple', 'brown', 'black'];
+  const BELT_DISPLAY_COLORS = {
+    white:  { bg: '#e8e8e0', stripe: '#111111', label: '#888',   glow: null },
+    blue:   { bg: '#1565c0', stripe: '#000a1f', label: '#64b5f6', glow: 'rgba(21,101,192,.35)' },
+    purple: { bg: '#6a1b9a', stripe: '#2a0040', label: '#ce93d8', glow: 'rgba(106,27,154,.45)' },
+    brown:  { bg: '#5d3a1a', stripe: '#1a0800', label: '#a0785a', glow: 'rgba(93,58,26,.35)' },
+    black:  { bg: '#1a1a1a', stripe: '#000',    label: '#666',   glow: 'rgba(255,255,255,.1)' },
+  };
+
+  // Build belt segments from beltHistory
+  const beltSegments = (() => {
+    if (!d.beltHistory || d.beltHistory.length === 0) return null;
+    const sorted = [...d.beltHistory].sort((a, b) => a.promoted_at.localeCompare(b.promoted_at));
+    // Group consecutive entries of same belt, keep highest stripes per belt
+    const segments = BELT_ORDER.map(belt => {
+      const entries = sorted.filter(e => e.belt === belt);
+      if (entries.length === 0) return null;
+      const maxStripes = Math.max(...entries.map(e => e.stripes || 0));
+      const firstDate = entries[0].promoted_at;
+      return { belt, stripes: maxStripes, date: firstDate };
+    }).filter(Boolean);
+    return segments;
+  })();
+
+  const currentBelt = profile?.belt || 'white';
+  const currentStripes = profile?.stripes || 0;
+
   return (
     <div style={{ paddingTop: 20, paddingBottom: 100 }}>
       {/* HEADER */}
-      <div className="wide-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+      <div className="wide-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <Av p={profile} size={36} />
           <div>
-            <h1 style={{ fontFamily: 'var(--font-d)', fontSize: 24, fontWeight: 400, color: '#f0ece2' }}>{profile?.display_name}</h1>
-            <div style={{ marginTop: 4 }}><BeltSVG belt={profile?.belt} stripes={profile?.stripes || 0} width={100} height={20} /></div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-            {gym?.name}
-            {d.weights?.length > 0 && (() => {
-              const lastW = d.weights[d.weights.length - 1]?.weight_kg;
-              const cat = lastW ? [
-                { max: 57.5, label: 'Rooster' }, { max: 64, label: 'Pluma' }, { max: 70, label: 'Pena' },
-                { max: 76, label: 'Leve' }, { max: 82.3, label: 'Médio' }, { max: 88.3, label: 'Meio-Pesado' },
-                { max: 94.3, label: 'Pesado' }, { max: 100.5, label: 'Super-Pesado' }, { max: Infinity, label: 'Pesadíssimo' }
-              ].find(c => lastW <= c.max) : null;
-              return cat ? <span style={{ marginLeft: 6, color: 'var(--accent)', fontWeight: 600 }}>· {cat.label} ({lastW}kg)</span> : null;
-            })()}
-          </div>
+            <h1 style={{ fontFamily: 'var(--font-d)', fontSize: 22, fontWeight: 400, color: '#f0ece2', lineHeight: 1.1 }}>{profile?.display_name}</h1>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
+              {gym?.name}
+              {d.weights?.length > 0 && (() => {
+                const lastW = d.weights[d.weights.length - 1]?.weight_kg;
+                const cat = lastW ? [
+                  { max: 57.5, label: 'Rooster' }, { max: 64, label: 'Pluma' }, { max: 70, label: 'Pena' },
+                  { max: 76, label: 'Leve' }, { max: 82.3, label: 'Médio' }, { max: 88.3, label: 'Meio-Pesado' },
+                  { max: 94.3, label: 'Pesado' }, { max: 100.5, label: 'Super-Pesado' }, { max: Infinity, label: 'Pesadíssimo' }
+                ].find(c => lastW <= c.max) : null;
+                return cat ? <span style={{ marginLeft: 6, color: 'var(--accent)', fontWeight: 600 }}>· {cat.label} ({lastW}kg)</span> : null;
+              })()}
+            </div>
           </div>
         </div>
+
+        {/* Belt progress bar */}
+        {beltSegments && beltSegments.length > 0 ? (
+          <BeltProgressBar
+            segments={beltSegments}
+            currentBelt={currentBelt}
+            currentStripes={currentStripes}
+            beltColors={BELT_DISPLAY_COLORS}
+            beltOrder={BELT_ORDER}
+          />
+        ) : (
+          <div style={{ flex: 1, maxWidth: 320 }}>
+            <BeltSVG belt={profile?.belt} stripes={profile?.stripes || 0} width={100} height={16} />
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 20 }}>
           {d.streak > 0 && <div style={{ textAlign: 'right' }}><div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Streak</div><div style={{ fontFamily: 'var(--font-d)', fontSize: 20, color: '#ff6b35' }}>🔥{d.streak}d</div></div>}
           {d.avgE && <div style={{ textAlign: 'right' }}><div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>Energy</div><div style={{ fontFamily: 'var(--font-d)', fontSize: 20, color: '#26a69a' }}>{d.avgE}/5</div></div>}
@@ -650,24 +799,28 @@ export default function DashboardPage() {
       {/* ═══ OVERVIEW ═══ */}
       {tab === 'overview' && (
         <div className="wide-container fade-in">
-          {/* Period selector */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginRight: 4 }}>Période</span>
-            {[
-              ...PERIOD_OPTIONS,
-              ...(beltHistory.length > 0 ? beltHistory.map(b => ({
-                id: `belt_${b.belt}`,
-                label: `🥋 ${b.belt.charAt(0).toUpperCase() + b.belt.slice(1)}${b.stripes ? ` (${b.stripes}s)` : ''}`
-              })) : [])
-            ].map(opt => (
-              <button key={opt.id} onClick={() => changePeriod(opt.id)} style={{
-                padding: '5px 12px', borderRadius: 16, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                background: period === opt.id ? 'var(--accent)' : 'rgba(255,255,255,.05)',
-                border: period === opt.id ? '1px solid var(--accent)' : '1px solid var(--border)',
-                color: period === opt.id ? '#fff' : 'var(--text-dim)',
-                transition: 'all .15s',
-              }}>{opt.label}</button>
-            ))}
+          {/* Period selector — compact dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1.5 }}>Période</span>
+            <select
+              value={period}
+              onChange={e => changePeriod(e.target.value)}
+              style={{
+                background: 'rgba(255,255,255,.06)', border: '1px solid var(--border)',
+                borderRadius: 8, color: '#f0ece2', fontSize: 12, fontWeight: 600,
+                padding: '5px 10px', cursor: 'pointer', outline: 'none',
+              }}
+            >
+              {[
+                ...PERIOD_OPTIONS,
+                ...(beltHistory.length > 0 ? beltHistory.map(b => ({
+                  id: `belt_${b.belt}`,
+                  label: `🥋 ${b.belt.charAt(0).toUpperCase() + b.belt.slice(1)}${b.stripes ? ` · ${b.stripes}s` : ''}`
+                })) : [])
+              ].map(opt => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
+            </select>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
@@ -710,31 +863,19 @@ export default function DashboardPage() {
               })}
             </div>
           </div>
-          {/* Belt + Goals row */}
+          {/* Goals row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            {/* Belt — compact */}
-            <div className="card" style={{ padding: '12px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <div className="section-title" style={{ margin: 0 }}>Belt Journey</div>
-                <BeltSVG belt={profile?.belt} stripes={profile?.stripes || 0} width={64} height={12} />
-              </div>
-              {d.beltHistory.length === 0
-                ? <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Add in Settings</div>
-                : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {d.beltHistory.map((b, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 6, background: `${BELT_COLORS[b.belt]}18`, border: `1px solid ${BELT_COLORS[b.belt]}30` }}>
-                        <BeltSVG belt={b.belt} stripes={b.stripes || 0} width={36} height={8} />
-                        <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{b.promoted_at}</span>
-                      </div>
-                    ))}
-                  </div>
-              }
-            </div>
             <div className="card">
               <div className="section-title">Goals</div>
               {d.goals.length === 0 ? <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Set in Settings</div> : d.goals.map((g, i) => (
                 <div key={i} style={{ marginBottom: 8 }}><div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}><span style={{ fontSize: 12, color: g.completed ? '#66bb6a' : '#ccc' }}>{g.completed ? '✓ ' : ''}{g.title}</span><span style={{ fontSize: 11, color: g.completed ? '#66bb6a' : '#ce93d8' }}>{g._current !== undefined ? `${g._current}/${g.target_value}` : `${g.progress}%`}</span></div><Bar value={g.progress} max={100} color={g.completed ? '#66bb6a' : '#ce93d8'} /></div>
               ))}
+            </div>
+            <div className="card" style={{ opacity: 0.4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
+                <div style={{ fontSize: 20, marginBottom: 6 }}>🥋</div>
+                Belt Journey dans ton profil
+              </div>
             </div>
           </div>
 
