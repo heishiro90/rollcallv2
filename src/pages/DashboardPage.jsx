@@ -423,23 +423,61 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
   );
 }
 
+// Period options (belt-based ones added dynamically from belt_history)
+const PERIOD_OPTIONS = [
+  { id: '30d',  label: '30j' },
+  { id: '90d',  label: '3 mois' },
+  { id: '180d', label: '6 mois' },
+  { id: '1y',   label: '1 an' },
+  { id: 'all',  label: 'Tout' },
+];
+
+function periodToStartDate(periodId, beltHistory = []) {
+  const now = new Date();
+  if (periodId === 'all') return new Date('2000-01-01').toISOString();
+  if (periodId === '30d')  { const d = new Date(now); d.setDate(d.getDate() - 30); return d.toISOString(); }
+  if (periodId === '90d')  { const d = new Date(now); d.setDate(d.getDate() - 90); return d.toISOString(); }
+  if (periodId === '180d') { const d = new Date(now); d.setDate(d.getDate() - 180); return d.toISOString(); }
+  if (periodId === '1y')   { const d = new Date(now); d.setFullYear(d.getFullYear() - 1); return d.toISOString(); }
+  // Belt-based: 'belt_white', 'belt_blue', etc.
+  if (periodId.startsWith('belt_')) {
+    const beltName = periodId.replace('belt_', '');
+    const sorted = [...beltHistory].sort((a, b) => a.promoted_at.localeCompare(b.promoted_at));
+    const idx = sorted.findIndex(b => b.belt === beltName);
+    if (idx >= 0) return new Date(sorted[idx].promoted_at).toISOString();
+  }
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+}
+
 export default function DashboardPage() {
   const { user, gym, profile } = useAuth();
   const [tab, setTab] = useState('overview');
   const [d, setD] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState(() => localStorage.getItem('rollcall_period') || '30d');
+  const [beltHistory, setBeltHistory] = useState([]);
 
-  useEffect(() => { if (user && gym) load(); }, [user, gym]);
+  useEffect(() => { if (user && gym) load(period); }, [user, gym]);
 
-  async function load() {
+  async function changePeriod(newPeriod) {
+    setPeriod(newPeriod);
+    localStorage.setItem('rollcall_period', newPeriod);
+    await load(newPeriod);
+  }
+
+  async function load(activePeriod = '30d') {
     const now = new Date();
-    const ms = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    // First fetch belt history to support belt-based periods
+    const { data: bhEarly } = await supabase.from('belt_history').select('*').eq('user_id', user.id).order('promoted_at');
+    const bh = bhEarly || [];
+    setBeltHistory(bh);
+    const ms = periodToStartDate(activePeriod, bh);
     const dow2 = (now.getDay() + 6) % 7;
     const wsDate = new Date(now); wsDate.setDate(now.getDate() - dow2); wsDate.setHours(0,0,0,0);
     const weekStart = wsDate.toISOString();
     const [
       { data: mc }, { data: ac }, { data: mr }, { data: ar },
-      { data: mt }, { data: at }, { data: goals }, { data: bh },
+      { data: mt }, { data: at }, { data: goals },
       { data: mev }, { data: aev },
       { data: weights }, { data: wGoal }, { data: injAll }, { data: roundsOpp },
       { data: comps }
@@ -451,7 +489,6 @@ export default function DashboardPage() {
       supabase.from('techniques').select('*').eq('user_id', user.id).eq('gym_id', gym.id).gte('created_at', weekStart).order('created_at', { ascending: false }),
       supabase.from('techniques').select('*').eq('user_id', user.id).eq('gym_id', gym.id).order('created_at', { ascending: false }),
       supabase.from('goals').select('*').eq('user_id', user.id).eq('gym_id', gym.id).order('created_at'),
-      supabase.from('belt_history').select('*').eq('user_id', user.id).order('promoted_at'),
       supabase.from('round_events').select('*').eq('user_id', user.id).eq('gym_id', gym.id).gte('created_at', ms),
       supabase.from('round_events').select('*').eq('user_id', user.id).eq('gym_id', gym.id),
       supabase.from('weight_logs').select('*').eq('user_id', user.id).order('logged_at').limit(60),
@@ -564,7 +601,7 @@ export default function DashboardPage() {
     setD({
       monthSessions: M.length, monthMin: M.reduce((s, c) => s + (c.duration_minutes || 0), 0), monthRounds: MR.length, avgRound, streak, avgE,
       weekly, submissions, topOffense, topWeaknesses, evBreak, techCats, techByDay, history,
-      goals: autoGoals, beltHistory: bh || [], allRounds: AR.length, allEvents: AEV.length, allEventsData: AEV,
+      goals: autoGoals, beltHistory: bh || [], allRounds: MR.length, allEvents: MEV.length, allEventsData: AEV,
       weights: W, weightGoal: wGoal, activeInj: INJ.filter(i => !i.resolved_at), pastInj: INJ.filter(i => i.resolved_at).slice(0, 5), opponents,
       competitions: comps || [], compSubMap,
     });
@@ -613,9 +650,38 @@ export default function DashboardPage() {
       {/* ═══ OVERVIEW ═══ */}
       {tab === 'overview' && (
         <div className="wide-container fade-in">
+          {/* Period selector */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginRight: 4 }}>Période</span>
+            {[
+              ...PERIOD_OPTIONS,
+              ...(beltHistory.length > 0 ? beltHistory.map(b => ({
+                id: `belt_${b.belt}`,
+                label: `🥋 ${b.belt.charAt(0).toUpperCase() + b.belt.slice(1)}${b.stripes ? ` (${b.stripes}s)` : ''}`
+              })) : [])
+            ].map(opt => (
+              <button key={opt.id} onClick={() => changePeriod(opt.id)} style={{
+                padding: '5px 12px', borderRadius: 16, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                background: period === opt.id ? 'var(--accent)' : 'rgba(255,255,255,.05)',
+                border: period === opt.id ? '1px solid var(--accent)' : '1px solid var(--border)',
+                color: period === opt.id ? '#fff' : 'var(--text-dim)',
+                transition: 'all .15s',
+              }}>{opt.label}</button>
+            ))}
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
-            {[{ l: 'Sessions', v: d.monthSessions, s: 'this month', c: '#64b5f6' }, { l: 'Hours', v: (d.monthMin / 60).toFixed(1), s: 'this month', c: '#ce93d8' }, { l: 'Rounds', v: d.monthRounds, s: 'this month', c: '#66bb6a' }, { l: 'Drilled', v: Object.values(d.techByDay).flat().length, s: 'techniques', c: '#ffb74d' }].map((s, i) => (
-              <div key={i} className="card" style={{ padding: 16 }}><div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>{s.l}</div><div style={{ fontFamily: 'var(--font-d)', fontSize: 28, color: s.c }}>{s.v}</div><div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{s.s}</div></div>
+            {[
+              { l: 'Sessions',   v: d.monthSessions,                                      s: 'sur la période', c: '#64b5f6' },
+              { l: 'Heures mat', v: (d.monthMin / 60).toFixed(1),                         s: 'sur la période', c: '#ce93d8' },
+              { l: 'Rounds',     v: d.monthRounds,                                         s: 'sur la période', c: '#66bb6a' },
+              { l: 'Techniques', v: Object.values(d.techByDay).flat().length,              s: 'drillées',       c: '#ffb74d' },
+            ].map((s, i) => (
+              <div key={i} className="card" style={{ padding: 16 }}>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>{s.l}</div>
+                <div style={{ fontFamily: 'var(--font-d)', fontSize: 28, color: s.c }}>{s.v}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{s.s}</div>
+              </div>
             ))}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
@@ -788,8 +854,16 @@ export default function DashboardPage() {
       {tab === 'rounds' && (
         <div className="wide-container fade-in">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
-            {[{ l: 'Total Rounds', v: d.allRounds, c: '#f0ece2' }, { l: 'Avg Duration', v: d.avgRound > 0 ? `${Math.floor(d.avgRound / 60)}:${String(d.avgRound % 60).padStart(2, '0')}` : '—', c: '#64b5f6' }, { l: 'Events', v: d.allEvents, c: '#ce93d8' }].map((s, i) => (
-              <div key={i} className="card" style={{ textAlign: 'center', padding: 16 }}><div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{s.l}</div><div style={{ fontFamily: 'var(--font-d)', fontSize: 26, color: s.c }}>{s.v}</div></div>
+            {[
+              { l: 'Rounds',       v: d.allRounds, c: '#f0ece2', s: 'sur la période' },
+              { l: 'Durée moy.',   v: d.avgRound > 0 ? `${Math.floor(d.avgRound / 60)}:${String(d.avgRound % 60).padStart(2, '0')}` : '—', c: '#64b5f6', s: 'par round' },
+              { l: 'Événements',   v: d.allEvents, c: '#ce93d8', s: 'sur la période' },
+            ].map((s, i) => (
+              <div key={i} className="card" style={{ textAlign: 'center', padding: 16 }}>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{s.l}</div>
+                <div style={{ fontFamily: 'var(--font-d)', fontSize: 26, color: s.c }}>{s.v}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{s.s}</div>
+              </div>
             ))}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
