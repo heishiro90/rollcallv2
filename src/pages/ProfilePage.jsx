@@ -6,11 +6,11 @@ import WeightChart from '../components/WeightChart';
 
 const BELTS = ['white', 'blue', 'purple', 'brown', 'black'];
 const GOAL_TYPES = [
-  { id: 'manual', label: 'Manuel' }, { id: 'mat_hours', label: 'Heures de mat' },
+  { id: 'manual', label: 'Manual' }, { id: 'mat_hours', label: 'Mat hours' },
   { id: 'sessions', label: 'Sessions' }, { id: 'rounds', label: 'Rounds' },
-  { id: 'submissions', label: 'Soumissions' }, { id: 'techniques', label: 'Techniques' },
+  { id: 'submissions', label: 'Submissions' }, { id: 'techniques', label: 'Techniques' },
 ];
-const PERIODS = [{ id: 'week', label: 'Semaine' }, { id: 'month', label: 'Mois' }, { id: 'semester', label: 'Semestre' }, { id: 'year', label: 'Année' }, { id: 'all', label: 'Tout' }];
+const PERIODS = [{ id: 'week', label: 'Week' }, { id: 'month', label: 'Month' }, { id: 'semester', label: 'Semester' }, { id: 'year', label: 'Year' }, { id: 'all', label: 'All' }];
 const ENERGY = [
   { val: 1, emoji: '😵' }, { val: 2, emoji: '😮‍💨' }, { val: 3, emoji: '😐' }, { val: 4, emoji: '😊' }, { val: 5, emoji: '🔥' },
 ];
@@ -132,14 +132,14 @@ export default function ProfilePage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
           {avatarPreview}
           <div style={{ flex: 1 }}>
-            <label className="label">Nom</label>
+            <label className="label">Name</label>
             <input className="input" value={dn} onChange={e => setDn(e.target.value)} required />
           </div>
         </div>
 
         {/* Photo URL */}
         <div style={{ marginBottom: 12 }}>
-          <label className="label">Photo de profil (URL)</label>
+          <label className="label">Profile photo (URL)</label>
           <input className="input" placeholder="https://..." value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} style={{ fontSize: 12 }} />
           <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>Collez le lien direct vers votre photo.</p>
         </div>
@@ -147,13 +147,13 @@ export default function ProfilePage() {
         {/* Belt + Stripes */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
           <div>
-            <label className="label">Ceinture</label>
+            <label className="label">Belt</label>
             <select className="input" value={belt} onChange={e => setBelt(e.target.value)}>
               {BELTS.map(b => <option key={b} value={b}>{b.charAt(0).toUpperCase() + b.slice(1)}</option>)}
             </select>
           </div>
           <div>
-            <label className="label">Galons</label>
+            <label className="label">Stripes</label>
             <select className="input" value={stripes} onChange={e => setStripes(e.target.value)}>
               {[0, 1, 2, 3, 4].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -165,11 +165,11 @@ export default function ProfilePage() {
 
         {/* Age */}
         <div style={{ marginBottom: 14, maxWidth: '50%' }}>
-          <label className="label">Âge</label>
+          <label className="label">Age</label>
           <input className="input" type="number" min="1" max="100" placeholder="ex. 28" value={age} onChange={e => setAge(e.target.value)} />
         </div>
 
-        <button className="btn btn-primary" type="submit" disabled={saving}>{saved ? 'Sauvegardé ✓' : saving ? '...' : 'Sauvegarder'}</button>
+        <button className="btn btn-primary" type="submit" disabled={saving}>{saved ? 'Saved ✓' : saving ? '...' : 'Save'}</button>
       </form>
 
       {/* Weight */}
@@ -230,7 +230,7 @@ export default function ProfilePage() {
                 {gType === 'submissions' && <input className="input" placeholder="Armbar..." value={gTechFilter} onChange={e => setGTechFilter(e.target.value)} style={{ flex: 1 }} />}
               </div>
             )}
-            <button className="btn btn-secondary btn-small" onClick={addGoal}>+ Ajouter objectif</button>
+            <button className="btn btn-secondary btn-small" onClick={addGoal}>+ Add goal</button>
           </div>
         </div>
       </div>
@@ -238,12 +238,12 @@ export default function ProfilePage() {
       {/* Injuries */}
       {injuries.length > 0 && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <div className="section-title" style={{ color: '#ef5350' }}>Blessures actives</div>
+          <div className="section-title" style={{ color: '#ef5350' }}>Active injuries</div>
           {injuries.map(inj => (
             <div key={inj.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
               <span style={{ fontSize: 13, color: '#ddd' }}>🩹 {inj.body_part} — {inj.injury_type} <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>({inj.severity})</span></span>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => resolveInjury(inj.id)} style={{ background: 'none', border: 'none', color: '#66bb6a', cursor: 'pointer', fontSize: 11 }}>Guéri ✓</button>
+                <button onClick={() => resolveInjury(inj.id)} style={{ background: 'none', border: 'none', color: '#66bb6a', cursor: 'pointer', fontSize: 11 }}>Healed ✓</button>
                 <button onClick={() => deleteInjury(inj.id)} style={{ background: 'none', border: 'none', color: '#ef5350', cursor: 'pointer', fontSize: 11 }}>×</button>
               </div>
             </div>
@@ -253,7 +253,7 @@ export default function ProfilePage() {
 
       {/* Belt History */}
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="section-title">Historique ceintures & stripes</div>
+        <div className="section-title">Belt & Stripe History</div>
         {beltHist.map(b => (
           <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -278,7 +278,7 @@ export default function ProfilePage() {
           <button className="btn btn-secondary btn-small" onClick={addBeltHistory}>+</button>
         </div>
         <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>
-          Ajoute chaque promotion séparément — ceinture blanche 1 stripe, 2 stripes, etc.
+          Add each promotion separately — white belt 1 stripe, 2 stripes, etc.
         </div>
       </div>
 
@@ -289,7 +289,7 @@ export default function ProfilePage() {
           <form onSubmit={createBadge} className="card" style={{ marginBottom: 12 }}>
             <div className="section-title">Créer un badge</div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <input className="input" placeholder="Nom du badge" value={newBadge} onChange={e => setNewBadge(e.target.value)} style={{ flex: 1 }} required />
+              <input className="input" placeholder="Badge name" value={newBadge} onChange={e => setNewBadge(e.target.value)} style={{ flex: 1 }} required />
               <input className="input" value={newBadgeE} onChange={e => setNewBadgeE(e.target.value)} style={{ width: 44, textAlign: 'center', fontSize: 16 }} />
               <button className="btn btn-secondary btn-small" type="submit">+</button>
             </div>

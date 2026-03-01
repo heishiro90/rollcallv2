@@ -187,7 +187,7 @@ function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRo
   const [customTech, setCustomTech] = useState('');
   const [customCat, setCustomCat] = useState('submission');
 
-  const sessionDate = new Date(session.checked_in_at).toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+  const sessionDate = new Date(session.checked_in_at).toLocaleDateString('en-US', { weekday:'long', day:'numeric', month:'long' });
 
   function tapTechnique(cat, tech) {
     if (cat.askPosition) { setPendingSub({ catId: cat.id, technique: tech }); return; }
@@ -238,7 +238,7 @@ function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRo
 
       {!addingRound ? (
         <button onClick={() => setAddingRound(true)} style={{ width:'100%', padding:'10px', borderRadius:8, background:'rgba(255,255,255,.04)', border:'1px dashed rgba(255,255,255,.15)', color:'var(--text-dim)', fontSize:13, cursor:'pointer' }}>
-          + Ajouter un round
+          + Add round
         </button>
       ) : (
         <div style={{ paddingTop:12, borderTop:'1px solid rgba(255,255,255,.06)' }}>
@@ -275,7 +275,7 @@ function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRo
           )}
           {oppMode === 'guest' && (
             <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:8, marginBottom:8 }}>
-              <input className="input" placeholder="Nom de l'adversaire" value={guestName} onChange={e => setGuestName(e.target.value)} />
+              <input className="input" placeholder="Opponent name" value={guestName} onChange={e => setGuestName(e.target.value)} />
               <div style={{ display:'flex', gap:4, alignItems:'center' }}>
                 {BELTS_SIMPLE.map(b => (
                   <button key={b} type="button" onClick={() => setGuestBelt(b)} style={{ width:18, height:18, borderRadius:'50%', background:BELT_DOT[b], border: guestBelt===b ? '2px solid white' : '2px solid transparent', cursor:'pointer', padding:0 }} />
@@ -339,8 +339,8 @@ function PastSessionRoundsAdder({ session, members, rounds, onAddRound, addingRo
 
           {err && <div style={{ color:'#ef5350', fontSize:12, marginBottom:8 }}>⚠️ {err}</div>}
           <div style={{ display:'flex', gap:8 }}>
-            <button className="btn btn-primary btn-small" onClick={handleAdd} disabled={saving} style={{ flex:2 }}>{saving ? '...' : 'Sauvegarder ce round'}</button>
-            <button onClick={() => setAddingRound(false)} style={{ flex:1, padding:'10px', borderRadius:8, background:'transparent', border:'1px solid var(--border)', color:'var(--text-dim)', fontSize:12, cursor:'pointer' }}>Annuler</button>
+            <button className="btn btn-primary btn-small" onClick={handleAdd} disabled={saving} style={{ flex:2 }}>{saving ? '...' : 'Save round'}</button>
+            <button onClick={() => setAddingRound(false)} style={{ flex:1, padding:'10px', borderRadius:8, background:'transparent', border:'1px solid var(--border)', color:'var(--text-dim)', fontSize:12, cursor:'pointer' }}>Cancel</button>
           </div>
         </div>
       )}
@@ -859,9 +859,9 @@ export default function CheckInPage() {
                       {s.energy_rating && <span style={{ marginLeft:4 }}>{ENERGY[s.energy_rating-1]?.emoji}</span>}
                     </div>
                     <div style={{ fontSize:11, color:'var(--text-muted)', marginTop:2 }}>
-                      {new Date(s.checked_in_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+                      {new Date(s.checked_in_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}
                       {' \u2192 '}
-                      {s.checked_out_at ? new Date(s.checked_out_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '\u2026'}
+                      {s.checked_out_at ? new Date(s.checked_out_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : '\u2026'}
                     </div>
                   </div>
                   {!selectMode && <button onClick={() => deleteSingle(s.id)} style={{ background:'none', border:'none', color:'#ef5350', cursor:'pointer', fontSize:11, padding:'2px 6px' }}>✕</button>}

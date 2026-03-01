@@ -117,7 +117,7 @@ function InlineOpponentPicker({ members, oppName, oppBelt, oppId, onChange }) {
         <div style={{ display: 'flex', gap: 8 }}>
           <input
             className="input"
-            placeholder="Nom de l'adversaire"
+            placeholder="Opponent name"
             value={oppName || ''}
             onChange={e => onChange({ name: e.target.value, belt: oppBelt || 'white', id: null })}
             style={{ flex: 1 }}
@@ -317,12 +317,12 @@ function RoundEditor({ round, members, onSave, onDelete, onClose }) {
 
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ flex: 2 }}>
-            {saving ? '...' : 'Sauvegarder'}
+            {saving ? '...' : 'Save'}
           </button>
           <button onClick={onDelete} style={{
             flex: 1, padding: '14px', borderRadius: 12, border: '1px solid rgba(239,83,80,.3)',
             background: 'rgba(239,83,80,.1)', color: '#ef5350', cursor: 'pointer', fontSize: 14, fontWeight: 600,
-          }}>Supprimer</button>
+          }}>Delete</button>
         </div>
       </div>
     </div>
@@ -383,7 +383,7 @@ function SessionEditor({ session, onSave, onClose }) {
         ))}
       </div>
       <textarea className="input" placeholder="Note..." value={note} onChange={e => setNote(e.target.value)} rows={2} style={{ resize: 'none', marginBottom: 10 }} />
-      <button className="btn btn-primary btn-small" onClick={handleSave} disabled={saving}>{saving ? '...' : 'Sauvegarder'}</button>
+      <button className="btn btn-primary btn-small" onClick={handleSave} disabled={saving}>{saving ? '...' : 'Save'}</button>
     </div>
   );
 }
@@ -495,7 +495,7 @@ function AddRoundForm({ session, members, onSave, onClose }) {
           ⚠️ {saveError}
         </div>
       )}
-      <button className="btn btn-primary btn-small" onClick={handleSave} disabled={saving}>{saving ? '...' : 'Ajouter ce round'}</button>
+      <button className="btn btn-primary btn-small" onClick={handleSave} disabled={saving}>{saving ? '...' : 'Add round'}</button>
     </div>
   );
 }
@@ -529,14 +529,14 @@ function SessionDetail({ session, members, onBack, onDeleted }) {
   }
 
   async function deleteRound(roundId) {
-    if (!confirm('Supprimer ce round ?')) return;
+    if (!confirm('Delete round ?')) return;
     await supabase.from('round_events').delete().eq('round_id', roundId);
     await supabase.from('rounds').delete().eq('id', roundId);
     loadRounds();
   }
 
   async function deleteSession() {
-    if (!confirm('Supprimer toute cette session ?')) return;
+    if (!confirm('Delete this session ?')) return;
     const rIds = rounds.map(r => r.id);
     if (rIds.length) {
       await supabase.from('round_events').delete().in('round_id', rIds);
@@ -550,7 +550,7 @@ function SessionDetail({ session, members, onBack, onDeleted }) {
     ? Math.round((new Date(s.checked_out_at) - new Date(s.checked_in_at)) / 1000)
     : null;
   const dateStr = s.checked_in_at
-    ? new Date(s.checked_in_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    ? new Date(s.checked_in_at).toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     : '—';
 
   return (
@@ -578,7 +578,7 @@ function SessionDetail({ session, members, onBack, onDeleted }) {
         <button onClick={deleteSession} style={{
           padding: '9px 14px', borderRadius: 10, border: '1px solid rgba(239,83,80,.25)',
           background: 'rgba(239,83,80,.08)', color: '#ef5350', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-        }}>🗑 Supprimer</button>
+        }}>🗑 Delete</button>
       </div>
 
       {editingSession && <SessionEditor session={s} onSave={refreshSession} onClose={() => setEditingSession(false)} />}
@@ -592,7 +592,7 @@ function SessionDetail({ session, members, onBack, onDeleted }) {
           padding: '5px 12px', borderRadius: 8, border: '1px solid var(--border)',
           background: addingRound ? 'rgba(123,45,142,.15)' : 'rgba(255,255,255,.03)',
           color: addingRound ? 'var(--accent)' : 'var(--text-dim)', fontSize: 11, fontWeight: 600, cursor: 'pointer',
-        }}>{addingRound ? '✕ Annuler' : '+ Round'}</button>
+        }}>{addingRound ? '✕ Cancel' : '+ Round'}</button>
       </div>
 
       {addingRound && (
@@ -604,7 +604,7 @@ function SessionDetail({ session, members, onBack, onDeleted }) {
       )}
 
       {loading ? (
-        <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-dim)' }}>Chargement...</div>
+        <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-dim)' }}>Loading...</div>
       ) : rounds.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>
           Aucun round enregistré pour cette session.
@@ -702,7 +702,7 @@ export default function SessionsPage() {
     setLoading(false);
   }
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>Chargement...</div>;
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>Loading...</div>;
 
   if (selected) {
     const s = sessions.find(x => x.id === selected);
@@ -723,7 +723,7 @@ export default function SessionsPage() {
   // Group by month
   const grouped = {};
   paged.forEach(s => {
-    const key = new Date(s.checked_in_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const key = new Date(s.checked_in_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(s);
   });
@@ -738,7 +738,7 @@ export default function SessionsPage() {
       {sessions.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)' }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
-          Aucune session enregistrée.
+          No sessions recorded.
         </div>
       ) : (
         <>
@@ -749,7 +749,7 @@ export default function SessionsPage() {
                 {items.map(s => {
                   const dur = s.checked_in_at && s.checked_out_at
                     ? Math.round((new Date(s.checked_out_at) - new Date(s.checked_in_at)) / 1000) : null;
-                  const dayStr = new Date(s.checked_in_at).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+                  const dayStr = new Date(s.checked_in_at).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
                   const typeInfo = SESSION_TYPES.find(t => t.id === s.session_type);
                   return (
                     <div key={s.id} onClick={() => setSelected(s.id)} className="card" style={{
@@ -764,9 +764,9 @@ export default function SessionsPage() {
                           {dur && <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>{fmtDuration(dur)}</span>}
                           {s.checked_in_at && (
                             <span style={{ fontSize: 12, color: '#888' }}>
-                              {new Date(s.checked_in_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                              {new Date(s.checked_in_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                               {' → '}
-                              {s.checked_out_at ? new Date(s.checked_out_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '…'}
+                              {s.checked_out_at ? new Date(s.checked_out_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '…'}
                             </span>
                           )}
                           {s.energy_rating && <span style={{ fontSize: 14 }}>{ENERGY[s.energy_rating - 1]?.emoji}</span>}

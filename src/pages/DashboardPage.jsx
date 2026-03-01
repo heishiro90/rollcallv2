@@ -131,7 +131,7 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
   }
 
   async function deleteComp(id) {
-    if (!confirm('Supprimer cette compétition ?')) return;
+    if (!confirm('Delete this competition?')) return;
     await supabase.from('competitions').delete().eq('id', id);
     onRefresh();
   }
@@ -173,7 +173,7 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
   }
 
   async function deleteMatch(id) {
-    if (!confirm('Supprimer ce match ?')) return;
+    if (!confirm('Delete this match?')) return;
     await supabase.from('competition_matches').delete().eq('id', id);
     onRefresh();
   }
@@ -183,7 +183,7 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
       {/* Stats row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 20 }}>
         {[
-          { l: 'Compétitions', v: competitions.length, c: '#f0ece2' },
+          { l: 'Competitions', v: competitions.length, c: '#f0ece2' },
           { l: 'Or', v: golds,   c: '#ffd54f', e: '🥇' },
           { l: 'Argent', v: silvers, c: '#e0e0e0', e: '🥈' },
           { l: 'Bronze', v: bronzes, c: '#ff8a65', e: '🥉' },
@@ -199,7 +199,7 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
       {/* Add button */}
       {!showForm ? (
         <button onClick={() => setShowForm(true)} style={{ width: '100%', padding: '12px', borderRadius: 10, background: 'rgba(155,77,202,.1)', border: '1px dashed rgba(155,77,202,.4)', color: 'var(--accent)', fontSize: 13, cursor: 'pointer', marginBottom: 16, fontWeight: 600 }}>
-          + Ajouter une compétition
+          + Add competition
         </button>
       ) : (
         <div className="card" style={{ marginBottom: 16, border: '1px solid rgba(155,77,202,.3)' }}>
@@ -250,8 +250,8 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
             </div>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-primary btn-small" onClick={saveComp} disabled={saving || !cName.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Sauvegarder'}</button>
-            <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>Annuler</button>
+            <button className="btn btn-primary btn-small" onClick={saveComp} disabled={saving || !cName.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Save'}</button>
+            <button onClick={() => setShowForm(false)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
       )}
@@ -260,7 +260,7 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
       {competitions.length === 0 && !showForm && (
         <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>🏆</div>
-          <div>Aucune compétition encore. Ajoute ta première !</div>
+          <div>No competitions yet. Add your first!</div>
         </div>
       )}
 
@@ -316,7 +316,7 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
 
                   {showMatchForm === c.id ? (
                     <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,.06)' }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#ccc', marginBottom: 10 }}>Ajouter un match</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#ccc', marginBottom: 10 }}>Add a match</div>
                       <input className="input" placeholder="Adversaire" value={mOpp} onChange={e => setMOpp(e.target.value)} style={{ marginBottom: 8 }} />
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
                         <div style={{ display: 'flex', gap: 4 }}>
@@ -340,12 +340,12 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
                       )}
                       <input className="input" placeholder="Note (optionnel)" value={mNote} onChange={e => setMNote(e.target.value)} style={{ marginBottom: 8 }} />
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button className="btn btn-primary btn-small" onClick={() => saveMatch(c.id)} disabled={saving || !mOpp.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Sauvegarder'}</button>
-                        <button onClick={() => setShowMatchForm(null)} style={{ flex: 1, padding: '8px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>Annuler</button>
+                        <button className="btn btn-primary btn-small" onClick={() => saveMatch(c.id)} disabled={saving || !mOpp.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Save'}</button>
+                        <button onClick={() => setShowMatchForm(null)} style={{ flex: 1, padding: '8px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
                       </div>
                     </div>
                   ) : (
-                    <button onClick={() => setShowMatchForm(c.id)} style={{ marginTop: 10, width: '100%', padding: '7px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px dashed rgba(255,255,255,.12)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+ Ajouter un match</button>
+                    <button onClick={() => setShowMatchForm(c.id)} style={{ marginTop: 10, width: '100%', padding: '7px', borderRadius: 8, background: 'rgba(255,255,255,.03)', border: '1px dashed rgba(255,255,255,.12)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>+ Add a match</button>
                   )}
                 </div>
               )}
@@ -378,8 +378,8 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
               <input type="checkbox" checked={eAbsolute} onChange={e => setEAbsolute(e.target.checked)} style={{ accentColor: 'var(--accent)' }} /> Absolute
             </label>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-primary btn-small" onClick={saveEditComp} disabled={saving || !eName.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Sauvegarder'}</button>
-              <button onClick={() => setEditingComp(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>Annuler</button>
+              <button className="btn btn-primary btn-small" onClick={saveEditComp} disabled={saving || !eName.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Save'}</button>
+              <button onClick={() => setEditingComp(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -413,8 +413,8 @@ function CompetitionTab({ competitions, userId, profile, onRefresh }) {
             )}
             <input className="input" placeholder="Note (optionnel)" value={emNote} onChange={e => setEmNote(e.target.value)} style={{ marginBottom: 10 }} />
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-primary btn-small" onClick={saveEditMatch} disabled={saving || !emOpp.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Sauvegarder'}</button>
-              <button onClick={() => setEditingMatch(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>Annuler</button>
+              <button className="btn btn-primary btn-small" onClick={saveEditMatch} disabled={saving || !emOpp.trim()} style={{ flex: 2 }}>{saving ? '...' : 'Save'}</button>
+              <button onClick={() => setEditingMatch(null)} style={{ flex: 1, padding: '10px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -796,7 +796,7 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, overflowX: 'auto' }}>
           {TABS.map(t => <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: '8px 0', background: 'none', border: 'none', borderBottom: tab === t.id ? '2px solid var(--accent)' : '2px solid transparent', color: tab === t.id ? '#f0ece2' : 'var(--text-dim)', fontSize: 13, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap' }}>{t.label}</button>)}
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, paddingBottom: 2 }}>
-            <span style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1.5 }}>Période</span>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1.5 }}>Period</span>
             <select
               value={period}
               onChange={e => changePeriod(e.target.value)}
@@ -825,10 +825,10 @@ export default function DashboardPage() {
         <div className="wide-container fade-in">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
             {[
-              { l: 'Sessions',   v: d.monthSessions,                                      s: 'sur la période', c: '#64b5f6' },
-              { l: 'Heures mat', v: (d.monthMin / 60).toFixed(1),                         s: 'sur la période', c: '#ce93d8' },
-              { l: 'Rounds',     v: d.monthRounds,                                         s: 'sur la période', c: '#66bb6a' },
-              { l: 'Techniques', v: Object.values(d.techByDay).flat().length,              s: 'drillées',       c: '#ffb74d' },
+              { l: 'Sessions',   v: d.monthSessions,                                      s: 'this period', c: '#64b5f6' },
+              { l: 'Mat hours', v: (d.monthMin / 60).toFixed(1),                         s: 'this period', c: '#ce93d8' },
+              { l: 'Rounds',     v: d.monthRounds,                                         s: 'this period', c: '#66bb6a' },
+              { l: 'Techniques', v: Object.values(d.techByDay).flat().length,              s: 'drilled',       c: '#ffb74d' },
             ].map((s, i) => (
               <div key={i} className="card" style={{ padding: 16 }}>
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>{s.l}</div>
@@ -882,7 +882,7 @@ export default function DashboardPage() {
             }
           </div>
 
-          {/* Compétitions overview */}
+          {/* Competitions overview */}
           {d.competitions && d.competitions.length > 0 && (() => {
             const allMatches = d.competitions.flatMap(c => c.matches || []);
             const totalW = allMatches.filter(m => m.result === 'win').length;
@@ -894,7 +894,7 @@ export default function DashboardPage() {
             return (
               <div className="card" style={{ marginTop: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <div className="section-title" style={{ margin: 0 }}>Compétitions</div>
+                  <div className="section-title" style={{ margin: 0 }}>Competitions</div>
                   <div style={{ display: 'flex', gap: 10 }}>
                     {gold > 0 && <span style={{ fontFamily: 'var(--font-d)', fontSize: 12, color: '#ffd700' }}>{gold}🥇</span>}
                     {silver > 0 && <span style={{ fontFamily: 'var(--font-d)', fontSize: 12, color: '#c0c0c0' }}>{silver}🥈</span>}
@@ -905,11 +905,11 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', gap: 24, marginBottom: 14 }}>
                   <div>
                     <div style={{ fontFamily: 'var(--font-d)', fontSize: 22, fontWeight: 700, color: '#66bb6a', lineHeight: 1 }}>{totalW}W</div>
-                    <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 3 }}>Victoires</div>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 3 }}>Wins</div>
                   </div>
                   <div>
                     <div style={{ fontFamily: 'var(--font-d)', fontSize: 22, fontWeight: 700, color: '#ef5350', lineHeight: 1 }}>{totalL}L</div>
-                    <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 3 }}>Défaites</div>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginTop: 3 }}>Losses</div>
                   </div>
                   <div>
                     <div style={{ fontFamily: 'var(--font-d)', fontSize: 22, fontWeight: 700, color: '#f0ece2', lineHeight: 1 }}>{winRate}%</div>
@@ -947,7 +947,7 @@ export default function DashboardPage() {
           {/* Injuries */}
           {d.activeInj.length > 0 && (
             <div className="card" style={{ marginTop: 14, borderColor: 'rgba(239,83,80,.2)', background: 'rgba(239,83,80,.04)' }}>
-              <div className="section-title" style={{ color: '#ef5350', marginBottom: 10 }}>🩹 Blessures actives</div>
+              <div className="section-title" style={{ color: '#ef5350', marginBottom: 10 }}>🩹 Active injuries</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {d.activeInj.map((inj, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -999,9 +999,9 @@ export default function DashboardPage() {
         <div className="wide-container fade-in">
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
             {[
-              { l: 'Rounds',       v: d.allRounds, c: '#f0ece2', s: 'sur la période' },
-              { l: 'Durée moy.',   v: d.avgRound > 0 ? `${Math.floor(d.avgRound / 60)}:${String(d.avgRound % 60).padStart(2, '0')}` : '—', c: '#64b5f6', s: 'par round' },
-              { l: 'Événements',   v: d.allEvents, c: '#ce93d8', s: 'sur la période' },
+              { l: 'Rounds',       v: d.allRounds, c: '#f0ece2', s: 'this period' },
+              { l: 'Avg duration',   v: d.avgRound > 0 ? `${Math.floor(d.avgRound / 60)}:${String(d.avgRound % 60).padStart(2, '0')}` : '—', c: '#64b5f6', s: 'per round' },
+              { l: 'Events',   v: d.allEvents, c: '#ce93d8', s: 'this period' },
             ].map((s, i) => (
               <div key={i} className="card" style={{ textAlign: 'center', padding: 16 }}>
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{s.l}</div>
