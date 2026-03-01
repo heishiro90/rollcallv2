@@ -13,7 +13,7 @@ const TABS = [
   { id: 'checkin', label: 'Train' },
   { id: 'sessions', label: 'Historique' },
   { id: 'dashboard', label: 'Stats' },
-  { id: 'coach', label: 'Cours' },
+  { id: 'coach', label: 'Curriculum' },
   { id: 'gym', label: 'Gym' },
   { id: 'profile', label: 'Réglages' },
 ];
