@@ -39,6 +39,7 @@ export default function ProfilePage() {
   const [gPeriod, setGPeriod] = useState('semester');
   const [gTechFilter, setGTechFilter] = useState('');
   const [bhBelt, setBhBelt] = useState('white');
+  const [bhStripes, setBhStripes] = useState(0);
   const [bhDate, setBhDate] = useState('');
   const [wKg, setWKg] = useState('');
   const [wgKg, setWgKg] = useState('');
@@ -94,7 +95,7 @@ export default function ProfilePage() {
   async function deleteGoal(id) { await supabase.from('goals').delete().eq('id', id); loadAll(); }
 
   // Belt
-  async function addBeltHistory(e) { e.preventDefault(); if (!bhDate) return; await supabase.from('belt_history').insert({ user_id: user.id, belt: bhBelt, promoted_at: bhDate }); setBhBelt('white'); setBhDate(''); loadAll(); }
+  async function addBeltHistory(e) { e.preventDefault(); if (!bhDate) return; await supabase.from('belt_history').insert({ user_id: user.id, belt: bhBelt, stripes: parseInt(bhStripes) || 0, promoted_at: bhDate }); setBhBelt('white'); setBhStripes(0); setBhDate(''); loadAll(); }
   async function deleteBeltHistory(id) { await supabase.from('belt_history').delete().eq('id', id); loadAll(); }
 
   // Weight
@@ -252,22 +253,32 @@ export default function ProfilePage() {
 
       {/* Belt History */}
       <div className="card" style={{ marginBottom: 16 }}>
-        <div className="section-title">Historique ceintures</div>
+        <div className="section-title">Historique ceintures & stripes</div>
         {beltHist.map(b => (
           <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <BeltSVG belt={b.belt} stripes={b.stripes || 0} width={60} height={12} />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{b.promoted_at}</span>
+              <span style={{ fontSize: 12, color: '#ccc', fontWeight: 500 }}>
+                {b.belt.charAt(0).toUpperCase() + b.belt.slice(1)}
+                {b.stripes > 0 ? ` · ${b.stripes} stripe${b.stripes > 1 ? 's' : ''}` : ''}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{b.promoted_at}</span>
             </div>
             <button onClick={() => deleteBeltHistory(b.id)} style={{ background: 'none', border: 'none', color: '#ef5350', cursor: 'pointer', fontSize: 11 }}>×</button>
           </div>
         ))}
-        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-          <select className="input" value={bhBelt} onChange={e => setBhBelt(e.target.value)} style={{ flex: 1 }}>
+        <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+          <select className="input" value={bhBelt} onChange={e => setBhBelt(e.target.value)} style={{ flex: 2, minWidth: 100 }}>
             {BELTS.map(b => <option key={b} value={b}>{b.charAt(0).toUpperCase() + b.slice(1)}</option>)}
           </select>
-          <input className="input" type="date" value={bhDate} onChange={e => setBhDate(e.target.value)} style={{ flex: 1 }} required />
+          <select className="input" value={bhStripes} onChange={e => setBhStripes(e.target.value)} style={{ flex: 1, minWidth: 80 }}>
+            {[0,1,2,3,4].map(n => <option key={n} value={n}>{n === 0 ? '0 stripe' : `${n} stripe${n>1?'s':''}`}</option>)}
+          </select>
+          <input className="input" type="date" value={bhDate} onChange={e => setBhDate(e.target.value)} style={{ flex: 2, minWidth: 120 }} required />
           <button className="btn btn-secondary btn-small" onClick={addBeltHistory}>+</button>
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>
+          Ajoute chaque promotion séparément — ceinture blanche 1 stripe, 2 stripes, etc.
         </div>
       </div>
 
