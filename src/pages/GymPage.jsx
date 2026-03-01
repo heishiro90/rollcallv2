@@ -31,10 +31,13 @@ function BeltPicker({ value, onChange }) {
 }
 
 // ── MEMBER CARD for Promotion Day ────────────────────────────────────────
-function MemberCard({ member, isOwner, onPromote, highlighted }) {
+function MemberCard({ member, isOwner, onPromote, onEdit, highlighted }) {
   const [confirming, setConfirming] = useState(null); // 'stripe' | 'belt'
+  const [editing, setEditing] = useState(false);
+  const [editBelt, setEditBelt] = useState(member.belt);
+  const [editStripes, setEditStripes] = useState(member.stripes || 0);
   const canAddStripe = member.stripes < 4;
-  const canPromoteBelt = member.belt !== 'black';
+  const canRemoveStripe = member.stripes > 0;
   const nextBelt = BELT_NEXT[member.belt];
 
   async function handleAction(type) {
@@ -47,56 +50,93 @@ function MemberCard({ member, isOwner, onPromote, highlighted }) {
     }
   }
 
+  async function handleEdit() {
+    await onEdit(member, editBelt, editStripes);
+    setEditing(false);
+  }
+
   return (
     <div style={{
       padding: '14px 16px', borderRadius: 12,
       background: highlighted ? 'rgba(155,77,202,.08)' : 'rgba(255,255,255,.03)',
-      border: `1px solid ${highlighted ? 'rgba(155,77,202,.3)' : 'var(--border)'}`,
+      border: `1px solid ${highlighted ? 'rgba(155,77,202,.3)' : editing ? 'rgba(255,255,255,.15)' : 'var(--border)'}`,
       transition: 'all .2s',
-      display: 'flex', alignItems: 'center', gap: 12,
     }}>
-      <Avatar name={member.name} avatarUrl={member.avatar_url} belt={member.belt} size={40} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#ddd', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {member.name}
-          {member.isVirtual && <span style={{ marginLeft: 6, fontSize: 9, color: '#555', textTransform: 'uppercase', letterSpacing: 1 }}>offline</span>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Avatar name={member.name} avatarUrl={member.avatar_url} belt={member.belt} size={40} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#ddd', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {member.name}
+            {member.isVirtual && <span style={{ marginLeft: 6, fontSize: 9, color: '#555', textTransform: 'uppercase', letterSpacing: 1 }}>offline</span>}
+          </div>
+          <div style={{ marginTop: 4 }}>
+            <BeltSVG belt={member.belt} stripes={member.stripes || 0} width={56} height={10} />
+          </div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, textTransform: 'capitalize' }}>
+            {member.belt}{member.stripes > 0 ? ` · ${member.stripes} stripe${member.stripes > 1 ? 's' : ''}` : ''}
+          </div>
         </div>
-        <div style={{ marginTop: 4 }}>
-          <BeltSVG belt={member.belt} stripes={member.stripes || 0} width={56} height={10} />
-        </div>
-        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, textTransform: 'capitalize' }}>
-          {member.belt}{member.stripes > 0 ? ` · ${member.stripes} stripe${member.stripes > 1 ? 's' : ''}` : ''}
-        </div>
-      </div>
 
-      {isOwner && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
-          {canAddStripe && (
-            <button
-              onClick={() => handleAction('stripe')}
-              style={{
+        {isOwner && !editing && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
+            {/* +1 stripe */}
+            {canAddStripe && (
+              <button onClick={() => handleAction('stripe')} style={{
                 padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer',
                 background: confirming === 'stripe' ? '#9b4dca' : 'rgba(155,77,202,.15)',
                 border: `1px solid ${confirming === 'stripe' ? '#9b4dca' : 'rgba(155,77,202,.3)'}`,
                 color: confirming === 'stripe' ? '#fff' : '#ce93d8',
                 transition: 'all .15s', whiteSpace: 'nowrap',
               }}>
-              {confirming === 'stripe' ? '✓ Confirm +1 stripe' : `+1 stripe → ${member.stripes + 1}`}
-            </button>
-          )}
-          {canPromoteBelt && nextBelt && (
-            <button
-              onClick={() => handleAction('belt')}
-              style={{
+                {confirming === 'stripe' ? `✓ Confirm +1 stripe` : `+1 stripe → ${member.stripes + 1}`}
+              </button>
+            )}
+            {/* Belt promotion */}
+            {nextBelt && (
+              <button onClick={() => handleAction('belt')} style={{
                 padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer',
                 background: confirming === 'belt' ? BELT_COLORS[nextBelt] : `${BELT_COLORS[nextBelt]}22`,
                 border: `1px solid ${confirming === 'belt' ? BELT_COLORS[nextBelt] : `${BELT_COLORS[nextBelt]}44`}`,
                 color: confirming === 'belt' ? (nextBelt === 'white' ? '#111' : '#fff') : '#aaa',
                 transition: 'all .15s', whiteSpace: 'nowrap',
               }}>
-              {confirming === 'belt' ? `✓ Promote to ${nextBelt}` : `→ ${nextBelt.charAt(0).toUpperCase() + nextBelt.slice(1)}`}
-            </button>
-          )}
+                {confirming === 'belt' ? `✓ Promote to ${nextBelt}` : `→ ${nextBelt.charAt(0).toUpperCase() + nextBelt.slice(1)}`}
+              </button>
+            )}
+            {/* Edit button */}
+            <button onClick={() => { setEditing(true); setEditBelt(member.belt); setEditStripes(member.stripes || 0); setConfirming(null); }} style={{
+              padding: '5px 10px', borderRadius: 7, fontSize: 11, cursor: 'pointer',
+              background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.1)',
+              color: '#666', transition: 'all .15s',
+            }}>✏️ Edit</button>
+          </div>
+        )}
+      </div>
+
+      {/* Inline edit panel */}
+      {editing && isOwner && (
+        <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,.08)' }}>
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 }}>Manual edit</div>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Belt</div>
+            <BeltPicker value={editBelt} onChange={b => { setEditBelt(b); setEditStripes(0); }} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Stripes</div>
+            <div style={{ display: 'flex', gap: 5 }}>
+              {[0,1,2,3,4].map(n => (
+                <button key={n} type="button" onClick={() => setEditStripes(n)} style={{
+                  width: 34, height: 34, borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                  background: editStripes === n ? 'var(--accent)' : 'rgba(255,255,255,.04)',
+                  color: editStripes === n ? '#fff' : 'var(--text-dim)',
+                }}>{n}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={handleEdit} className="btn btn-primary btn-small" style={{ flex: 1 }}>Save</button>
+            <button onClick={() => setEditing(false)} className="btn btn-secondary btn-small" style={{ flex: 1 }}>Cancel</button>
+          </div>
         </div>
       )}
     </div>
@@ -169,7 +209,8 @@ export default function GymPage() {
   const [showCode, setShowCode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [promotionMode, setPromotionMode] = useState(false);
-  const [promotedToday, setPromotedToday] = useState(new Set()); // ids promoted this session
+  const [promotedToday, setPromotedToday] = useState(new Set());
+  const [undoStack, setUndoStack] = useState([]); // [{member snapshot before action}]
 
   // Add contact form
   const [showContactForm, setShowContactForm] = useState(false);
@@ -220,6 +261,9 @@ export default function GymPage() {
   });
 
   async function promoteMembers(member, type) {
+    // Save snapshot for undo
+    setUndoStack(prev => [...prev.slice(-9), { ...member }]);
+
     let newBelt = member.belt;
     let newStripes = member.stripes;
 
@@ -233,16 +277,45 @@ export default function GymPage() {
     }
 
     const today = new Date().toISOString().split('T')[0];
-
     if (member.isVirtual) {
       await supabase.from('gym_contacts').update({ belt: newBelt, stripes: newStripes }).eq('id', member.contactId);
     } else {
       await supabase.from('profiles').update({ belt: newBelt, stripes: newStripes }).eq('id', member.id);
-      // Log in belt_history
       await supabase.from('belt_history').insert({ user_id: member.id, belt: newBelt, stripes: newStripes, promoted_at: today });
     }
-
     setPromotedToday(prev => new Set([...prev, member.id]));
+    loadData();
+  }
+
+  async function editMember(member, newBelt, newStripes) {
+    // Save snapshot for undo
+    setUndoStack(prev => [...prev.slice(-9), { ...member }]);
+    const today = new Date().toISOString().split('T')[0];
+    if (member.isVirtual) {
+      await supabase.from('gym_contacts').update({ belt: newBelt, stripes: newStripes }).eq('id', member.contactId);
+    } else {
+      await supabase.from('profiles').update({ belt: newBelt, stripes: newStripes }).eq('id', member.id);
+      await supabase.from('belt_history').insert({ user_id: member.id, belt: newBelt, stripes: newStripes, promoted_at: today });
+    }
+    setPromotedToday(prev => new Set([...prev, member.id]));
+    loadData();
+  }
+
+  async function undoLast() {
+    const snapshot = undoStack[undoStack.length - 1];
+    if (!snapshot) return;
+    setUndoStack(prev => prev.slice(0, -1));
+
+    if (snapshot.isVirtual) {
+      await supabase.from('gym_contacts').update({ belt: snapshot.belt, stripes: snapshot.stripes }).eq('id', snapshot.contactId);
+    } else {
+      await supabase.from('profiles').update({ belt: snapshot.belt, stripes: snapshot.stripes }).eq('id', snapshot.id);
+      // Remove the last belt_history entry for this user (the one we just added)
+      const { data: recent } = await supabase.from('belt_history')
+        .select('id').eq('user_id', snapshot.id)
+        .order('promoted_at', { ascending: false }).limit(1);
+      if (recent?.[0]) await supabase.from('belt_history').delete().eq('id', recent[0].id);
+    }
     loadData();
   }
 
@@ -405,10 +478,21 @@ export default function GymPage() {
         <>
           {/* Banner */}
           <div style={{ background: 'linear-gradient(135deg, rgba(155,77,202,.15), rgba(106,27,154,.08))', border: '1px solid rgba(155,77,202,.3)', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
-            <div style={{ fontFamily: 'var(--font-d)', fontSize: 16, color: '#ce93d8', marginBottom: 6 }}>🥋 Promotion Day</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ fontFamily: 'var(--font-d)', fontSize: 16, color: '#ce93d8' }}>🥋 Promotion Day</div>
+              {undoStack.length > 0 && (
+                <button onClick={undoLast} style={{
+                  padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  background: 'rgba(239,83,80,.15)', border: '1px solid rgba(239,83,80,.3)',
+                  color: '#ef9090', display: 'flex', alignItems: 'center', gap: 5,
+                }}>
+                  ↩ Undo — {undoStack[undoStack.length - 1].name}
+                </button>
+              )}
+            </div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5 }}>
-              Tap <strong style={{ color: '#fff' }}>+1 stripe</strong> to add a stripe, or <strong style={{ color: '#fff' }}>→ Belt</strong> to promote to the next belt.
-              Each action requires a second tap to confirm. Belt promotions are automatically logged to the student's history.
+              Tap <strong style={{ color: '#fff' }}>+1 stripe</strong> or <strong style={{ color: '#fff' }}>→ Belt</strong> — confirm with a second tap.
+              Use <strong style={{ color: '#fff' }}>✏️ Edit</strong> to set any rank manually. Undo available after each action.
             </div>
             {promotedToday.size > 0 && (
               <div style={{ marginTop: 10, fontSize: 12, color: '#66bb6a', fontWeight: 600 }}>
@@ -436,6 +520,7 @@ export default function GymPage() {
                       member={member}
                       isOwner={isOwner}
                       onPromote={promoteMembers}
+                      onEdit={editMember}
                       highlighted={promotedToday.has(member.id)}
                     />
                   ))}

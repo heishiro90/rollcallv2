@@ -438,8 +438,12 @@ export default function CheckInPage() {
     if (!c) {
       const { data: activeInj } = await supabase.from('injuries').select('*').eq('user_id',user.id).is('resolved_at',null);
       if (activeInj?.length) {
-        const lastDay = rec?.[0]?.checked_in_at?.split('T')[0];
-        if (lastDay && lastDay < todayStr()) setInjuryCheck(activeInj);
+        const injCheckKey = `injuryChecked_${user.id}`;
+        const lastChecked = localStorage.getItem(injCheckKey);
+        if (lastChecked !== todayStr()) {
+          setInjuryCheck(activeInj);
+          localStorage.setItem(injCheckKey, todayStr());
+        }
       }
     }
     setLoading(false);
